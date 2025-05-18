@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import datetime
+import os
 
 @dataclass
 class TaskEntry:
@@ -79,6 +80,9 @@ def write_task(taskfile, category, task, notes):
     If category is empty, omit it from the output.
     """
     finish = datetime.datetime.now()
+
+    # Ensure the target directory exists
+    os.makedirs(os.path.dirname(taskfile), exist_ok=True)
 
     entry_parts = [finish.strftime('%Y-%m-%d %H:%M')]
     if category:

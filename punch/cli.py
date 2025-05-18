@@ -1,10 +1,11 @@
+import os
 from argparse import ArgumentParser
 import sys
 from rich.console import Console
 import datetime
 from rich.tree import Tree
 
-from punch.config import load_config
+from punch.config import load_config, get_config_path, get_tasks_file
 from punch.export import export_csv, export_json
 from punch.tasks import get_recent_tasks, write_task, parse_new_task_string
 from punch.report import generate_report
@@ -186,8 +187,14 @@ def print_report(report):
     console.print(tree)
 
 def main():
-    config = load_config()
-    tasks_file = config.get('tasks_file', 'tasks.txt')
+    config_path = get_config_path()
+    if not os.path.exists(config_path):
+        # If config does not exist, create directory and empty config
+        os.makedirs(os.path.dirname(config_path), exist_ok=True)
+        with open(config_path, "w") as f:
+            f.write("categories: []\n")
+    config = load_config(config_path)
+    tasks_file = get_tasks_file()
     categories = config.get('categories', [])
 
     # If no arguments, enter interactive mode

@@ -6,8 +6,16 @@ from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn
 from rich.console import Console
 import time
 import re
+from punch.config import get_config_path
 
 TIMECARDS_LINK = "https://canonical.lightning.force.com/lightning/o/TimeCard__c/new"
+
+def get_auth_json_path():
+    config_path = get_config_path()
+    config_dir = os.path.dirname(config_path)
+    auth_dir = config_dir
+    os.makedirs(auth_dir, exist_ok=True)
+    return os.path.join(auth_dir, "auth.json")
 
 def log_redirects(request):
     from rich.console import Console
@@ -19,10 +27,11 @@ def log_redirects(request):
 
 def login_to_site():
     console = Console()
+    auth_json_path = get_auth_json_path()
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=False)
-        if os.path.exists("auth.json"):
-            context = browser.new_context(storage_state="auth.json")
+        if os.path.exists(auth_json_path):
+            context = browser.new_context(storage_state=auth_json_path)
             console.print("[cyan]Loaded existing authentication from auth.json[/cyan]")
         else:
             context = browser.new_context()
@@ -37,7 +46,7 @@ def login_to_site():
         page.wait_for_url(TIMECARDS_LINK, timeout=30000)
         console.print("[green]Login successful.[/green]")
 
-        context.storage_state(path="auth.json")
+        context.storage_state(path=auth_json_path)
         console.print("[green]Login saved to auth.json[/green]")
 
         browser.close()
@@ -83,10 +92,11 @@ def submit_timecards(file_path="tasks.txt", headless=True):
     PROGRESS_WIDTH = 30  # Constant for progress description width
 
     console = Console()
+    auth_json_path = get_auth_json_path()
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=headless)
         try:
-            context = browser.new_context(storage_state="auth.json")
+            context = browser.new_context(storage_state=auth_json_path)
         except FileNotFoundError:
             console.print("[red]Task file not found or no authentication. Please login first using the 'login' command.[/red]")
             browser.close()
@@ -192,4 +202,5 @@ def fill_date(page, value):
     page.locator(xpath).fill(value)
 
 def fill_time(page, value):
-    value = "15:09"
+    xpath="xpath=//input[@name='StartTime__c' and @role='combobox']"
+    page.locator(xpath).fill(value)
