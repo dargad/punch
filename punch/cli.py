@@ -8,6 +8,7 @@ from punch.config import load_config
 from punch.export import export_csv, export_json
 from punch.tasks import get_recent_tasks, write_task, parse_new_task_string
 from punch.report import generate_report
+from punch.web import login_to_site, submit_timecards
 
 SUBCOMMANDS = ["new", "report", "export", "login", "submit"]
 
@@ -119,6 +120,9 @@ def prepare_parser():
     parser_submit.add_argument(
         "-n", "--dry-run", action="store_true", help="Perform a dry run of the submission"
     )
+    parser_submit.add_argument(
+        "--headed", action="store_true", help="Run the browser in headed mode"
+    )
 
     # Allow top-level positional arguments for quick task entry
     parser.add_argument(
@@ -218,8 +222,6 @@ def main():
                 print("Exporting to CSV...")
                 print(export_csv(tasks_file, getattr(args, 'from'), args.to))
         elif args.command == "login":
-            # Implement login logic
-            pass
+            login_to_site()
         elif args.command == "submit":
-            # Implement submit logic
-            pass
+            submit_timecards(tasks_file, headless=not args.headed)
