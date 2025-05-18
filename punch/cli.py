@@ -1,9 +1,15 @@
 from argparse import ArgumentParser
 import sys
 from rich.console import Console
+import datetime
+from rich.tree import Tree
 
 from punch.config import load_config
-from punch.tasks import get_recent_tasks, write_task
+from punch.export import export_csv, export_json
+from punch.tasks import get_recent_tasks, write_task, parse_new_task_string
+from punch.report import generate_report
+
+SUBCOMMANDS = ["new", "report", "export", "login", "submit"]
 
 def select_from_list(console, items, prompt, style="bold yellow"):
     """
@@ -56,6 +62,16 @@ def interactive_mode(categories, tasks_file):
     write_task(tasks_file, selected_category, task_name, notes)
     console.print(f"Logged: {selected_category} : {task_name} : {notes}", style="bold green")
 
+def valid_date(date_str):
+    """
+    Validates the date format (YYYY-MM-DD).
+    Returns a datetime.date object if valid, raises ValueError otherwise.
+    """
+    try:
+        return datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        raise ValueError("Invalid date format. Use YYYY-MM-DD.")
+
 def prepare_parser():    
     parser = ArgumentParser(description="punch - a CLI tool for managing your tasks")
     parser.add_argument(
@@ -63,27 +79,29 @@ def prepare_parser():
         help="Show the version of the program"
     )
 
-    subparsers = parser.add_subparsers(dest="command", help="Available commands")
+    today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+
+    subparsers = parser.add_subparsers(dest="command", help="Available commands", required=False)
 
     parser_new = subparsers.add_parser("new", help="Mark the start of your day")
 
     parser_report = subparsers.add_parser("report", help="Print a report of your timecards")
     parser_report.add_argument(
-        "-f", "--from", help="Specify the start date for the report (YYYY-MM-DD)"
+        "-f", "--from", default=today_str, type=valid_date, help="Specify the start date for the report (YYYY-MM-DD)"
     )
     parser_report.add_argument(
-        "-t", "--to", help="Specify the end date for the report (YYYY-MM-DD)"
+        "-t", "--to", default=today_str, type=valid_date, help="Specify the end date for the report (YYYY-MM-DD)"
     )
 
     parser_export = subparsers.add_parser("export", help="Export your timecards")
     parser_export.add_argument(
-        "-f", "--from", help="Specify the start date for the export (YYYY-MM-DD)"
+        "-f", "--from", default=today_str, type=valid_date, help="Specify the start date for the export (YYYY-MM-DD)"
     )
     parser_export.add_argument(
-        "-t", "--to", help="Specify the end date for the export (YYYY-MM-DD)"
+        "-t", "--to", default=today_str, type=valid_date, help="Specify the end date for the export (YYYY-MM-DD)"
     )
     parser_export.add_argument(
-        "--format", choices=["csv", "json"], help="Specify the format for export"
+        "--format", choices=["csv", "json"], default="json", help="Specify the format for export"
     )
     parser_export.add_argument(
         "-o", "--output", help="Specify the output file for export"
@@ -91,27 +109,117 @@ def prepare_parser():
 
     parser_login = subparsers.add_parser("login", help="Login to your timecards account")
 
-
     parser_submit = subparsers.add_parser("submit", help="Submit your timecards")
     parser_submit.add_argument(
-        "-f", "--from", help="Specify the start date for the submission (YYYY-MM-DD)"
+        "-f", "--from", default=today_str, type=valid_date, help="Specify the start date for the submission (YYYY-MM-DD)"
     )
     parser_submit.add_argument(
-        "-t", "--to", help="Specify the end date for the submission (YYYY-MM-DD)"
+        "-t", "--to", default=today_str, type=valid_date, help="Specify the end date for the submission (YYYY-MM-DD)"
     )
     parser_submit.add_argument(
         "-n", "--dry-run", action="store_true", help="Perform a dry run of the submission"
     )
 
+    # Allow top-level positional arguments for quick task entry
+    parser.add_argument(
+        "quick_task",
+        nargs="*",
+        help="Quick task entry: category : task [: notes]"
+    )
+
     return parser
+
+def print_report(report):
+    """
+    Pretty-print the report dictionary using a rich Tree.
+    The report dict should be in the format:
+      {category: [(task, duration)]} if collapsed,
+      or {category: [(task, notes, duration)]} if not collapsed.
+    Also prints the sum of all durations at the bottom.
+    """
+    console = Console()
+    tree = Tree("Task Report")
+
+    # Find max length for left part (task or task | notes)
+    max_left_len = 0
+    for entries in report.values():
+        for entry in entries:
+            if len(entry) == 2:
+                task = entry[0]
+                left = f"{task}"
+            elif len(entry) == 3:
+                task, notes, _ = entry
+                left = f"{task}"
+                if notes:
+                    left += f" | {notes}"
+            max_left_len = max(max_left_len, len(left))
+
+    total_duration = datetime.timedelta(0)
+
+    for category, entries in report.items():
+        cat_node = tree.add(f"[bold]{category}[/bold]")
+        for entry in entries:
+            if len(entry) == 2:
+                # collapsed: (task, duration)
+                task, duration = entry
+                minutes = int(duration.total_seconds() // 60)
+                left = f"{task}"
+            elif len(entry) == 3:
+                # not collapsed: (task, notes, duration)
+                task, notes, duration = entry
+                minutes = int(duration.total_seconds() // 60)
+                left = f"{task}"
+                if notes:
+                    left += f" | {notes}"
+            # Pad left part so all durations align
+            line = f"{left.ljust(max_left_len)} {str(duration).rjust(10)} ({minutes} min)"
+            cat_node.add(line)
+            total_duration += duration
+
+    total_minutes = int(total_duration.total_seconds() // 60)
+    tree.add(f"[bold yellow]Total: {str(total_duration).rjust(max_left_len + 10)} ({total_minutes} min)[/bold yellow]")
+
+    console.print(tree)
 
 def main():
     config = load_config()
     tasks_file = config.get('tasks_file', 'tasks.txt')
     categories = config.get('categories', [])
-    
-    parser = prepare_parser()
-    parser.parse_args()
 
+    # If no arguments, enter interactive mode
     if len(sys.argv) == 1:
         interactive_mode(categories, tasks_file)
+        return
+    elif sys.argv[1] not in SUBCOMMANDS:
+        quick_task = sys.argv[1:]
+        task_str =  " ".join(quick_task)
+        task = parse_new_task_string(task_str, categories)
+        write_task(tasks_file, task.category, task.task, task.notes)
+        print(f"Logged: {task.category} : {task.task} : {task.notes}")
+        return
+    else:
+        parser = prepare_parser()
+        args = parser.parse_args()
+        
+        if args.command == "new":
+            # Implement new task logic
+            pass
+        elif args.command == "report":
+            # Implement report logic
+            console = Console()
+            console.print(f"From: {getattr(args, 'from')} To: {getattr(args, 'to')}", style="bold blue")
+            report = generate_report(tasks_file, getattr(args, 'from'), args.to)
+            print_report(report)
+        elif args.command == "export":
+            if args.format == "json":
+                print("Exporting to JSON...")
+                print(export_json(tasks_file, getattr(args, 'from'), args.to))
+            elif args.format == "csv":
+                print("Exporting to CSV...")
+                print(export_csv(tasks_file, getattr(args, 'from'), args.to))
+        elif args.command == "login":
+            # Implement login logic
+            pass
+        elif args.command == "submit":
+            # Implement submit logic
+            pass
