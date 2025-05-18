@@ -2,7 +2,7 @@ import unittest
 import tempfile
 import os
 import datetime
-from punch.tasks import TaskEntry, read_tasklog, parse_task, SEPARATOR
+from punch.tasks import TaskEntry, read_tasklog, parse_task, SEPARATOR, parse_new_task_string
 
 class TestTasks(unittest.TestCase):
     def setUp(self):
@@ -77,6 +77,37 @@ class TestTasks(unittest.TestCase):
         tasklog = [prev]
         with self.assertRaises(ValueError):
             parse_task(line, tasklog)
+
+CATEGORIES = {
+    "Coding": {"short": "c", "caseid": "100"},
+    "Meeting": {"short": "m", "caseid": "200"},
+    "Bugfix": {"short": "b", "caseid": "300"},
+    "Research": {"short": "r", "caseid": "400"},
+}
+
+def test_parse_new_task_string_categoryless_star():
+    entry = parse_new_task_string("lunch*", CATEGORIES)
+    assert entry.category == ""
+    assert entry.task == "lunch*"
+    assert entry.notes == ""
+
+def test_parse_new_task_string_categoryless_double_star():
+    entry = parse_new_task_string("breakfast**", CATEGORIES)
+    assert entry.category == ""
+    assert entry.task == "breakfast**"
+    assert entry.notes == ""
+
+def test_parse_new_task_string_categoryless_star_with_notes():
+    entry = parse_new_task_string("lunch* : quick meal", CATEGORIES)
+    assert entry.category == ""
+    assert entry.task == "lunch*"
+    assert entry.notes == "quick meal"
+
+def test_parse_new_task_string_categoryless_double_star_with_notes():
+    entry = parse_new_task_string("breakfast** : with coffee", CATEGORIES)
+    assert entry.category == ""
+    assert entry.task == "breakfast**"
+    assert entry.notes == "with coffee"
 
 if __name__ == "__main__":
     unittest.main()
