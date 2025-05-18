@@ -1,0 +1,93 @@
+#compdef punch.py
+
+# Zsh completion for punch.py
+
+local curcontext="$curcontext" state line
+typeset -A opt_args
+
+# Paths
+local config_file="${XDG_CONFIG_HOME:-$HOME/.config}/punch/punch.yaml"
+local tasks_file="${XDG_DATA_HOME:-$HOME/.local/share}/punch/tasks.txt"
+
+# Extract short categories and mapping to full names
+local -a shorts
+local -A short_to_full
+if [[ -f "$config_file" ]]; then
+  local catname=""
+  while IFS= read -r line; do
+    if [[ "$line" =~ '^([[:space:]]*)([A-Za-z0-9 _-]+):[[:space:]]*$' ]]; then
+      catname="${match[2]}"
+    elif [[ "$line" =~ 'short:[[:space:]]*([^[:space:]]+)' ]]; then
+      shorts+=("${match[1]}")
+      short_to_full[${match[1]}]="$catname"
+    fi
+  done < "$config_file"
+fi
+
+local -a subcommands
+subcommands=(new report export login submit)
+local -a opts_report
+opts_report=(-f --from -t --to)
+local -a opts_export
+opts_export=(-f --from -t --to --format -o --output)
+local -a opts_submit
+opts_submit=(-f --from -t --to -n --dry-run --headed)
+local -a opts_global
+opts_global=(-v --version)
+
+# If first arg is not a subcommand, suggest quick task entry
+if (( CURRENT == 2 )); then
+  if ! [[ " ${subcommands[@]} " == *" $words[2] "* ]]; then
+    _describe 'short category' shorts
+    return
+  fi
+fi
+
+# Subcommand completion
+if (( CURRENT == 2 )); then
+  _describe 'subcommand' subcommands
+  _describe 'global option' opts_global
+  return
+fi
+
+# Option completion for subcommands
+case "$words[2]" in
+  report)
+    _describe 'option' opts_report
+    return
+    ;;
+  export)
+    _describe 'option' opts_export
+    return
+    ;;
+  submit)
+    _describe 'option' opts_submit
+    return
+    ;;
+esac
+
+# Quick task entry: <short-category> : <task name> [: notes]
+# Detect if we are after "<short> :"
+if (( CURRENT == 4 )) && [[ " ${shorts[@]} " == *" $words[2] "* && "$words[3]" == ":" ]]; then
+  # Find full category name
+  local fullcat="${short_to_full[$words[2]]}"
+  # Extract tasks for this category from tasks.txt
+  if [[ -f "$tasks_file" && -n "$fullcat" ]]; then
+    local -a tasks
+    tasks=("${(@f)$(awk -F'|' -v cat="$fullcat" '{gsub(/^ +| +$/,"",$0); if ($2 == cat) print $3}' "$tasks_file" | sort -u)}")
+    _describe 'task' tasks
+    return
+  fi
+fi
+
+# After "<short> :", allow free text (new task)
+if (( CURRENT == 4 )) && [[ "$words[3]" == ":" ]]; then
+  compadd
+  return
+fi
+
+# After "<short> : <task>", suggest nothing (notes are free text)
+if (( CURRENT == 5 )) && [[ "$words[3]" == ":" ]]; then
+  compadd
+  return
+fi
