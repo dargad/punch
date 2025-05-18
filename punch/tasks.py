@@ -15,6 +15,7 @@ def read_tasklog(taskfile):
     """
     Reads the task log from a file and returns a list of TaskEntry objects.
     The first task of each day will have a duration of 0, subsequent tasks will have duration relative to the previous task of that day.
+    Removes tasks ending with '**' and with duration == 0.
     """
     tasklog = []
     prev_entry_by_day = {}
@@ -34,6 +35,11 @@ def read_tasklog(taskfile):
                 prev_entry_by_day[day] = entry
     except FileNotFoundError:
         pass
+    # Remove tasks ending with '**' and with duration == 0
+    tasklog = [
+        entry for entry in tasklog
+        if entry.duration.total_seconds() > 0 and not entry.task.endswith("**")
+    ]
     return tasklog
 
 def parse_task(line):

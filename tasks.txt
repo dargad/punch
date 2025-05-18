@@ -1,6 +1,6 @@
 2025-05-12 08:45 | new
-2025-05-12 09:00 | Research | Benchmark performance | Worked on benchmark performance.
-2025-05-12 09:35 | Meeting | Sprint planning | Worked on sprint planning.
+2025-05-12 09:00 | Research | Benchmark performance this is a really really long task description to strech the progress | Worked on benchmark performance.
+2025-05-12 09:35 | Meeting | Sprint planning. Meeting of meetings with lots of people | Worked on sprint planning.
 2025-05-12 10:07 | Meeting | Retrospective | Worked on retrospective.
 2025-05-12 10:42 | Research | Benchmark performance | Worked on benchmark performance.
 2025-05-12 11:53 | Research | Explore new DB tech | Worked on explore new db tech.
@@ -49,3 +49,4 @@
 2025-05-16 15:59 | Research | Benchmark performance | Worked on benchmark performance.
 2025-05-16 16:40 | Meeting | Sprint planning | Worked on sprint planning.
 2025-05-16 16:41 | Coding | Refactor module X | Blabla
+2025-05-18 12:03 | Meeting | Sprint planning
