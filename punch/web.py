@@ -6,7 +6,7 @@ from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn
 from rich.console import Console
 import time
 import re
-from punch.config import get_config_path
+from punch.config import get_config_path, load_config
 
 TIMECARDS_LINK = "https://canonical.lightning.force.com/lightning/o/TimeCard__c/new"
 
@@ -67,7 +67,22 @@ def select_from_combo(page, value, placeholder, xpath):
     element.click()
 
 def determine_case_number(entry):
-    return "00255865"
+    """
+    Returns the case number for the entry's category using the config file.
+    Looks up entry.category in config['categories'][<category>]['caseid'].
+    Left-fills the result with zeroes to 8 characters.
+    Returns None if not found.
+    """
+    config_path = get_config_path()
+    config = load_config(config_path)
+    categories = config.get("categories", {})
+    if not isinstance(categories, dict):
+        return None
+    cat_info = categories.get(entry.category)
+    if not cat_info or "caseid" not in cat_info:
+        return None
+    caseid = str(cat_info["caseid"]).zfill(8)
+    return caseid
 
 def extract_case_number(task):
     """
@@ -95,112 +110,136 @@ def submit_timecards(file_path="tasks.txt", headless=True):
     auth_json_path = get_auth_json_path()
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=headless)
-        try:
-            context = browser.new_context(storage_state=auth_json_path)
-        except FileNotFoundError:
-            console.print("[red]Task file not found or no authentication. Please login first using the 'login' command.[/red]")
-            browser.close()
+        context = _get_browser_context(console, browser, auth_json_path)
+        if context is None:
             return
 
-        try:
-            entries = read_tasklog(file_path)
-        except FileNotFoundError:
-            console.print("[red]Auth info file not found. Please login first using the 'login' command.[/red]")
-            browser.close()
-            return
-
-        # Skip tasks with duration 0 or ending with **
-        entries = [
-            entry for entry in entries
-            if entry.duration.total_seconds() > 0 and not entry.task.endswith("**")
-        ]
+        entries = _get_valid_entries(console, file_path, browser)
         if not entries:
-            console.print("[yellow]No tasks to submit.[/yellow]")
-            browser.close()
             return
 
         page = context.new_page()
-        page.goto(TIMECARDS_LINK)
-        console.print(f"[cyan]Waiting for login at {TIMECARDS_LINK}...[/cyan]")
-        page.wait_for_url(TIMECARDS_LINK, timeout=30000)
-        console.print("[green]Login successful. Submitting timecards...[/green]")
+        _login_to_timecards(console, page)
 
-        with Progress(
-            TextColumn("{task.fields[desc]}", justify="left", style="white"),
-            BarColumn(bar_width=PROGRESS_WIDTH+10),
-            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-            TextColumn("[cyan]{task.fields[count]}", justify="right"),
-            "•",
-            TimeElapsedColumn(),
-            console=console,
-        ) as progress:
-            total = len(entries)
-            task = progress.add_task(
-                "Submitting entries", total=total, desc="Submitting entries".ljust(PROGRESS_WIDTH), count=f"0/{total}"
-            )
-            for idx, entry in enumerate(entries, 1):
-                
-                full_name = entry.category
+        _submit_entries_with_progress(console, page, entries, PROGRESS_WIDTH)
 
-                case_no = determine_case_number(entry)
-
-                fill_case_number(page, case_no)
-
-                fill_owner(page, "Dariusz Gadomski")
-
-                if not case_no:
-                    # if no case number mapping found try to extract it from the task
-                    case_no = extract_case_number(entry.task)
-                    desc = entry.desc
-                else:
-                    # if mapping has been found use taskname as notes
-                    desc = entry.task
-
-                fill_description(page, desc)
-
-                duration = int(entry.duration.total_seconds() // 60)
-                fill_duration(page, str(duration))
-                
-                date = entry.finish.strftime("%d/%m/%Y")
-                fill_date(page, date)
-
-                time = entry.finish.strftime("%H:%M")
-                fill_time(page, time)
-
-                page.locator('xpath=//lightning-button[button[@name="SaveAndNew"]]').click()
-                input("Press Enter to continue...")
-
-                progress.update(task, advance=1, desc=desc, count=f"{idx}/{total}")
-            progress.update(task, completed=total, count=f"{total}/{total}")
-
-        page.locator('xpath=//lightning-button[button[@name="CancelEdit"]]').click()
-
+        _cancel_edit(page)
         console.print(f"[bold green]Submitted {len(entries)} entries.[/bold green]")
         browser.close()
 
-def fill_owner(page, value):
+def _get_browser_context(console, browser, auth_json_path):
+    try:
+        context = browser.new_context(storage_state=auth_json_path)
+        return context
+    except FileNotFoundError:
+        console.print("[red]Task file not found or no authentication. Please login first using the 'login' command.[/red]")
+        browser.close()
+        return None
+
+def _get_valid_entries(console, file_path, browser):
+    try:
+        entries = read_tasklog(file_path)
+    except FileNotFoundError:
+        console.print("[red]Auth info file not found. Please login first using the 'login' command.[/red]")
+        browser.close()
+        return None
+
+    # Skip tasks with duration 0 or ending with **
+    entries = [
+        entry for entry in entries
+        if entry.duration.total_seconds() > 0 and not entry.task.endswith("**")
+    ]
+    if not entries:
+        console.print("[yellow]No tasks to submit.[/yellow]")
+        browser.close()
+        return None
+    return entries
+
+def _login_to_timecards(console, page):
+    page.goto(TIMECARDS_LINK)
+    console.print(f"[cyan]Waiting for login at {TIMECARDS_LINK}...[/cyan]")
+    page.wait_for_url(TIMECARDS_LINK, timeout=30000)
+    console.print("[green]Login successful. Submitting timecards...[/green]")
+
+def _submit_entries_with_progress(console, page, entries, PROGRESS_WIDTH):
+    from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn
+
+    with Progress(
+        TextColumn("{task.fields[desc]}", justify="left", style="white"),
+        BarColumn(bar_width=PROGRESS_WIDTH+10),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        TextColumn("[cyan]{task.fields[count]}", justify="right"),
+        "•",
+        TimeElapsedColumn(),
+        console=console,
+    ) as progress:
+        total = len(entries)
+        task = progress.add_task(
+            "Submitting entries", total=total, desc="Submitting entries".ljust(PROGRESS_WIDTH), count=f"0/{total}"
+        )
+        for idx, entry in enumerate(entries, 1):
+            _submit_single_entry(page, entry)
+            desc = entry.task
+            desc = (desc[:PROGRESS_WIDTH-3] + "...") if len(desc) > PROGRESS_WIDTH else desc.ljust(PROGRESS_WIDTH)
+            progress.update(task, advance=1, desc=desc, count=f"{idx}/{total}")
+        progress.update(task, completed=total, count=f"{total}/{total}")
+
+def _submit_single_entry(page, entry):
+    case_no = determine_case_number(entry)
+    _fill_case_number(page, case_no)
+
+    # Fetch full name from config
+    config_path = get_config_path()
+    config = load_config(config_path)
+    full_name = config.get("full_name")
+    if not full_name:
+        raise Exception("Full name not set in config file. Please add 'full_name' to your config.")
+
+    _fill_owner(page, full_name)
+
+    if not case_no:
+        # if no case number mapping found try to extract it from the task
+        case_no = extract_case_number(entry.task)
+        desc = entry.desc if hasattr(entry, "desc") else entry.task
+    else:
+        # if mapping has been found use taskname as notes
+        desc = entry.task
+
+    _fill_description(page, desc)
+    duration = int(entry.duration.total_seconds() // 60)
+    _fill_duration(page, str(duration))
+    date = entry.finish.strftime("%d/%m/%Y")
+    _fill_date(page, date)
+    time_str = entry.finish.strftime("%H:%M")
+    _fill_time(page, time_str)
+    page.locator('xpath=//lightning-button[button[@name="SaveAndNew"]]').click()
+
+def _cancel_edit(page):
+    page.locator('xpath=//lightning-button[button[@name="CancelEdit"]]').click()
+
+def _fill_owner(page, value):
     placeholder = "Search People..."
     xpath = f'xpath=//lightning-base-combobox-formatted-text[@title="{value}"]'
     select_from_combo(page, value, placeholder, xpath)
     print("after select_from_combo")
 
-def fill_case_number(page, value):
+def _fill_case_number(page, value):
     placeholder = "Search Cases..."
     xpath = f'xpath=//lightning-base-combobox-formatted-text[@title="{value}"]'
     select_from_combo(page, value, placeholder, xpath)
 
-def fill_description(page, value):
+def _fill_description(page, value):
     xpath = f"xpath=//textarea[@maxlength='255']"
     page.locator(xpath).fill(value)
 
-def fill_duration(page, value):
+def _fill_duration(page, value):
     xpath = f"xpath=//input[@name='TotalMinutesStatic__c']"
     page.locator(xpath).fill(value)
 
-def fill_date(page, value):
-    xpath="xpath=//input[@name='StartTime__c' and not(@role='combobox')]"
+def _fill_date(page, value):
+    xpath = "xpath=//input[@name='StartTime__c' and not(@role='combobox')]"
     page.locator(xpath).fill(value)
 
-def fill_time(page, value):
-    xpath="xpath=//input[@name='StartTime__c' and @role='combobox']"
+def _fill_time(page, value):
+    xpath = "xpath=//input[@name='StartTime__c' and @role='combobox']"
     page.locator(xpath).fill(value)
