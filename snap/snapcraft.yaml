@@ -98,7 +98,7 @@ parts:
     override-build: |
       snapcraftctl build
       export PLAYWRIGHT_BROWSERS_PATH=$SNAPCRAFT_PART_INSTALL/playwright-browsers
-      playwright install --with-deps firefox
+      playwright install --with-deps chromium
       install -m755 punch-completion.bash $SNAPCRAFT_PART_INSTALL/bin/punch-completer
 
 # Notes:
