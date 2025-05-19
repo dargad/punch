@@ -80,4 +80,4 @@ _punch_complete()
         return 0
     fi
 }
-complete -F _punch_complete punch.py
+complete -F _punch_complete punch

@@ -12,6 +12,7 @@ confinement: strict
 apps:
   punch:
     command: bin/punch
+    completer: bin/punch-completer
     plugs:
       - home
       - network
@@ -98,6 +99,7 @@ parts:
       snapcraftctl build
       export PLAYWRIGHT_BROWSERS_PATH=$SNAPCRAFT_PART_INSTALL/playwright-browsers
       playwright install --with-deps firefox
+      install -m755 punch-completion.bash $SNAPCRAFT_PART_INSTALL/bin/punch-completer
 
 # Notes:
 # - This snap uses Poetry for dependency management and builds the wheel.
