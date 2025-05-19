@@ -4,6 +4,7 @@ import sys
 from rich.console import Console
 import datetime
 from rich.tree import Tree
+from datetime import datetime, time
 
 from punch.config import load_config, get_config_path, get_tasks_file
 from punch.export import export_csv, export_json
@@ -70,7 +71,7 @@ def valid_date(date_str):
     Returns a datetime.date object if valid, raises ValueError otherwise.
     """
     try:
-        return datetime.datetime.strptime(date_str, "%Y-%m-%d").date()
+        return datetime.strptime(date_str, "%Y-%m-%d").date()
     except ValueError:
         raise ValueError("Invalid date format. Use YYYY-MM-DD.")
 
@@ -81,7 +82,7 @@ def prepare_parser():
         help="Show the version of the program"
     )
 
-    today_str = datetime.datetime.now().strftime("%Y-%m-%d")
+    today_str = datetime.now().strftime("%Y-%m-%d")
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands", required=False)
 
@@ -213,8 +214,7 @@ def main():
         args = parser.parse_args()
         
         if args.command == "new":
-            # Implement new task logic
-            pass
+            write_task(tasks_file, "", "new", "")
         elif args.command == "report":
             # Implement report logic
             console = Console()
@@ -231,4 +231,9 @@ def main():
         elif args.command == "login":
             login_to_site()
         elif args.command == "submit":
-            submit_timecards(tasks_file, headless=not args.headed)
+            submit_timecards(
+                tasks_file,
+                headless=not args.headed,
+                date_from=getattr(args, 'from', None),
+                date_to=getattr(args, 'to', None)
+            )
