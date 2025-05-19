@@ -1,7 +1,8 @@
 import os
+import time
 from playwright.sync_api import sync_playwright
 from punch.tasks import read_tasklog
-from datetime import datetime, time
+import datetime
 from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn
 from rich.console import Console
 import re
@@ -17,6 +18,7 @@ def get_auth_json_path():
     return os.path.join(auth_dir, "auth.json")
 
 def log_redirects(request):
+    pass
     from rich.console import Console
     console = Console()
     if request.redirected_from:
@@ -28,7 +30,7 @@ def login_to_site():
     console = Console()
     auth_json_path = get_auth_json_path()
     with sync_playwright() as p:
-        browser = p.firefox.launch(headless=False)
+        browser = p.chromium.launch(headless=False)
         if os.path.exists(auth_json_path):
             context = browser.new_context(storage_state=auth_json_path)
             console.print("[cyan]Loaded existing authentication from auth.json[/cyan]")
@@ -55,15 +57,15 @@ def select_from_combo(page, value, placeholder, xpath):
     Select an item from a Lightning combobox by filling the input, clicking, and selecting the matching element.
     """
     input_box = page.locator(f'input[placeholder="{placeholder}"]')
-    print("Input box found:", input_box)
     input_box.fill(f"{value}")
     time.sleep(1)
     input_box.click()
     element = page.locator(xpath)
-    print("Element found:", element)
     element.wait_for(state="visible", timeout=10000)
     
     element.click()
+
+    time.sleep(1)
 
 def determine_case_number(entry):
     """
@@ -112,7 +114,7 @@ def submit_timecards(file_path="tasks.txt", headless=True, date_from=None, date_
     console = Console()
     auth_json_path = get_auth_json_path()
     with sync_playwright() as p:
-        browser = p.firefox.launch(headless=headless)
+        browser = p.chromium.launch(headless=headless)
         context = _get_browser_context(console, browser, auth_json_path)
         if context is None:
             return
@@ -150,13 +152,13 @@ def _get_valid_entries(console, file_path, browser, date_from=None, date_to=None
     # Filter by date range if provided
     if date_from or date_to:
         if date_from is None:
-            date_from_dt = datetime.min
+            date_from_dt = datetime.datetime.min
         else:
-            date_from_dt = datetime.combine(date_from, time.min)
+            date_from_dt = datetime.datetime.combine(date_from, datetime.time.min)
         if date_to is None:
-            date_to_dt = datetime.max
+            date_to_dt = datetime.datetime.max
         else:
-            date_to_dt = datetime.combine(date_to, time.max)
+            date_to_dt = datetime.datetime.combine(date_to, datetime.time.max)
         entries = [
             entry for entry in entries
             if date_from_dt <= entry.finish <= date_to_dt
@@ -204,7 +206,6 @@ def _submit_entries_with_progress(console, page, entries, PROGRESS_WIDTH):
 
 def _submit_single_entry(page, entry):
     case_no = determine_case_number(entry)
-    _fill_case_number(page, case_no)
 
     # Fetch full name from config
     config_path = get_config_path()
@@ -218,10 +219,12 @@ def _submit_single_entry(page, entry):
     if not case_no:
         # if no case number mapping found try to extract it from the task
         case_no = extract_case_number(entry.task)
-        desc = entry.desc if hasattr(entry, "desc") else entry.task
+        desc = entry.notes if hasattr(entry, "notes") else entry.task
     else:
         # if mapping has been found use taskname as notes
         desc = entry.task
+
+    _fill_case_number(page, case_no)
 
     _fill_description(page, desc)
     duration = int(entry.duration.total_seconds() // 60)
@@ -239,7 +242,6 @@ def _fill_owner(page, value):
     placeholder = "Search People..."
     xpath = f'xpath=//lightning-base-combobox-formatted-text[@title="{value}"]'
     select_from_combo(page, value, placeholder, xpath)
-    print("after select_from_combo")
 
 def _fill_case_number(page, value):
     placeholder = "Search Cases..."
