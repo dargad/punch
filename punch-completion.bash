@@ -1,4 +1,4 @@
-# punch.py bash completion with task name completion
+# punch bash completion with 'add' category and task completion
 
 _punch_complete()
 {
@@ -23,17 +23,11 @@ _punch_complete()
         done < "$config_file"
     fi
 
-    local subcommands="new report export login submit"
+    local subcommands="start report export login submit add"
     local opts_report="-f --from -t --to"
     local opts_export="-f --from -t --to --format -o --output"
     local opts_submit="-f --from -t --to -n --dry-run --headed"
     local opts_global="-v --version"
-
-    # If first arg is not a subcommand, suggest quick task entry
-    if [[ ${COMP_CWORD} -eq 1 && ! " $subcommands " =~ " ${cur} " ]]; then
-        COMPREPLY=( $(compgen -W "$shorts" -- "$cur") )
-        return 0
-    fi
 
     # Subcommand completion
     if [[ ${COMP_CWORD} -eq 1 ]]; then
@@ -45,39 +39,35 @@ _punch_complete()
     case "${COMP_WORDS[1]}" in
         report)
             COMPREPLY=( $(compgen -W "$opts_report" -- "$cur") )
+            return 0
             ;;
         export)
             COMPREPLY=( $(compgen -W "$opts_export" -- "$cur") )
+            return 0
             ;;
         submit)
             COMPREPLY=( $(compgen -W "$opts_submit" -- "$cur") )
+            return 0
             ;;
-        *)
+        add)
+            # punch add <category> : <task>
+            if [[ ${COMP_CWORD} -eq 2 ]]; then
+                # Complete with short categories
+                COMPREPLY=( $(compgen -W "$shorts" -- "$cur") )
+                return 0
+            elif [[ ${COMP_CWORD} -ge 4 && "${COMP_WORDS[COMP_CWORD-1]// /}" == ":" ]]; then
+                local fullcat="${short_to_full[${COMP_WORDS[2]}]}"
+                if [[ -f "$tasks_file" && -n "$fullcat" ]]; then
+                    mapfile -t tasks < <(awk -F'|' -v cat="$fullcat" '{gsub(/^[ \t]+|[ \t]+$/, "", $2); gsub(/^[ \t]+|[ \t]+$/, "", $3); if ($2 == cat) print $3}' "$tasks_file" | sort -u)
+                    printf "cur: '%s'\n" "$cur" >> /tmp/punch-completion-debug.log
+                    COMPREPLY=( "${tasks[@]}" )
+                    return 0
+                fi
+            fi
             ;;
     esac
 
-    # Quick task entry: <short-category> : <task name> [: notes]
-    # Detect if we are after "<short> :"
-    if [[ ${COMP_CWORD} -ge 3 ]]; then
-        local prev_short="${COMP_WORDS[1]}"
-        local prev_colon="${COMP_WORDS[2]}"
-        if [[ " $shorts " =~ " $prev_short " && "$prev_colon" == ":" ]]; then
-            # Find full category name
-            local fullcat="${short_to_full[$prev_short]}"
-            # Extract tasks for this category from tasks.txt
-            if [[ -f "$tasks_file" && -n "$fullcat" ]]; then
-                local tasks
-                tasks=$(awk -F'|' -v cat="$fullcat" '{gsub(/^ +| +$/,"",$0); if ($2 == cat) print $3}' "$tasks_file" | sort -u)
-                COMPREPLY=( $(compgen -W "$tasks" -- "$cur") )
-                return 0
-            fi
-        fi
-    fi
-
-    # If after "<short> :", complete nothing (so user can type a new task)
-    if [[ ${COMP_CWORD} -eq 3 && "${COMP_WORDS[2]}" == ":" ]]; then
-        COMPREPLY=()
-        return 0
-    fi
+    # Fallback: complete nothing
+    COMPREPLY=()
 }
-complete -F _punch_complete punch
+complete -F _punch_complete punch.py punch
