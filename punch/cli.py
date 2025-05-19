@@ -4,7 +4,7 @@ import sys
 from rich.console import Console
 import datetime
 from rich.tree import Tree
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 
 from punch.config import load_config, get_config_path, get_tasks_file
 from punch.export import export_csv, export_json
@@ -160,7 +160,7 @@ def print_report(report):
                     left += f" | {notes}"
             max_left_len = max(max_left_len, len(left))
 
-    total_duration = datetime.timedelta(0)
+    total_duration = timedelta(0)
 
     for category, entries in report.items():
         cat_node = tree.add(f"[bold]{category}[/bold]")
