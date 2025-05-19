@@ -1,0 +1,105 @@
+name: punch
+base: core22
+version: '1.0.0'
+summary: CLI tool for tracking, reporting, and submitting your work tasks and timecards
+description: |
+  Punch is a command-line tool for tracking, reporting, and submitting your work tasks and timecards.
+  It supports quick task entry, interactive mode, reporting, exporting, and Salesforce Lightning timecard submission.
+
+grade: stable
+confinement: strict
+
+apps:
+  punch:
+    command: bin/punch
+    plugs:
+      - home
+      - network
+      - network-bind
+      - browser-support
+      - x11
+      - wayland
+    environment:
+      PLAYWRIGHT_BROWSERS_PATH: $SNAP/playwright-browsers
+
+parts:
+  punch:
+    plugin: python
+    source: .
+    build-packages:
+      - python3-dev
+      - python3-pip
+      - python3-venv
+      - gcc
+      - libffi-dev
+      - libssl-dev
+    stage-packages:
+      - libnss3
+      - libatk1.0-0
+      - libatk-bridge2.0-0
+      - libcups2
+      - libdrm2
+      - libgbm1
+      - libgtk-3-0
+      - libxcomposite1
+      - libxdamage1
+      - libxrandr2
+      - libasound2
+      - libxss1
+      - libxtst6
+      - libappindicator3-1
+      - libnspr4
+      - libnss3
+      - libx11-xcb1
+      - libxshmfence1
+      - libxcb-dri3-0
+      - libxkbcommon0
+      - libxrender1
+      - libxext6
+      - libxfixes3
+      - libxinerama1
+      - libxcomposite1
+      - libxcursor1
+      - libxi6
+      - libxrandr2
+      - libxss1
+      - libxtst6
+      - libappindicator3-1
+      - libdbusmenu-glib4
+      - libdbusmenu-gtk3-4
+      - libsecret-1-0
+      - libgtk-3-0
+      - libnotify4
+      - libnss3
+      - libx11-xcb1
+      - libxcomposite1
+      - libxdamage1
+      - libxfixes3
+      - libxrandr2
+      - libgbm1
+      - libasound2
+      - libatk-bridge2.0-0
+      - libgtk-3-0
+      - libxkbcommon0
+      - libxshmfence1
+      - libnspr4
+      - libdrm2
+      - libxcb-dri3-0
+      - libcups2
+      - libxinerama1
+      - libxcursor1
+      - libxi6
+      - libappindicator3-1
+      - libdbusmenu-glib4
+      - libdbusmenu-gtk3-4
+      - libsecret-1-0
+      - libnotify4
+    override-build: |
+      snapcraftctl build
+      export PLAYWRIGHT_BROWSERS_PATH=$SNAPCRAFT_PART_INSTALL/playwright-browsers
+      playwright install --with-deps
+
+# Notes:
+# - This snap uses Poetry for dependency management and builds the wheel.
+# - The Playwright browser dependencies are included in stage-packages for headless browser support.
+# - You may need to run `playwright install` after installing the snap to fetch browser binaries.
