@@ -223,10 +223,8 @@ def main():
             print_report(report)
         elif args.command == "export":
             if args.format == "json":
-                print("Exporting to JSON...")
                 print(export_json(tasks_file, getattr(args, 'from'), args.to))
             elif args.format == "csv":
-                print("Exporting to CSV...")
                 print(export_csv(tasks_file, getattr(args, 'from'), args.to))
         elif args.command == "login":
             login_to_site()
