@@ -98,8 +98,12 @@ You'll be prompted to select a category, task, and enter notes.
 python punch.py <subcommand> [options]
 ```
 
-#### `new`
-Mark the start of your day (future use).
+#### `start`
+Mark the start of your day.
+
+```sh
+python punch.py start
+```
 
 #### `report`
 Print a report of your timecards.
@@ -136,7 +140,7 @@ python punch.py submit --headed
 Tasks are stored in `tasks.txt` as lines like:
 
 ```
-2025-05-16 09:00 | Coding | new | 
+2025-05-16 09:00 | start | 
 2025-05-16 10:00 | Coding | Feature | Implemented feature
 ```
 

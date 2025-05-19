@@ -86,8 +86,6 @@ def prepare_parser():
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands", required=False)
 
-    parser_new = subparsers.add_parser("new", help="Mark the start of your day")
-
     parser_report = subparsers.add_parser("report", help="Print a report of your timecards")
     parser_report.add_argument(
         "-f", "--from", default=today_str, type=valid_date, help="Specify the start date for the report (YYYY-MM-DD)"
@@ -110,6 +108,13 @@ def prepare_parser():
         "-o", "--output", help="Specify the output file for export"
     )
 
+    parser_add = subparsers.add_parser("add", help="Add a new task")
+    parser_add.add_argument(
+        "task_args",
+        nargs="+",
+        help="Category, colon, task, and optional notes (e.g. c : Task name : Notes)"
+    )
+
     parser_login = subparsers.add_parser("login", help="Login to your timecards account")
 
     parser_submit = subparsers.add_parser("submit", help="Submit your timecards")
@@ -124,13 +129,6 @@ def prepare_parser():
     )
     parser_submit.add_argument(
         "--headed", action="store_true", help="Run the browser in headed mode"
-    )
-
-    # Allow top-level positional arguments for quick task entry
-    parser.add_argument(
-        "quick_task",
-        nargs="*",
-        help="Quick task entry: category : task [: notes]"
     )
 
     return parser
@@ -198,23 +196,23 @@ def main():
     tasks_file = get_tasks_file()
     categories = config.get('categories', [])
 
+
     # If no arguments, enter interactive mode
     if len(sys.argv) == 1:
         interactive_mode(categories, tasks_file)
-        return
-    elif sys.argv[1] not in SUBCOMMANDS:
-        quick_task = sys.argv[1:]
-        task_str =  " ".join(quick_task)
-        task = parse_new_task_string(task_str, categories)
-        write_task(tasks_file, task.category, task.task, task.notes)
-        print(f"Logged: {task.category} : {task.task} : {task.notes}")
         return
     else:
         parser = prepare_parser()
         args = parser.parse_args()
         
-        if args.command == "new":
-            write_task(tasks_file, "", "new", "")
+        if args.command == "start":
+            write_task(tasks_file, "", "start", "")
+        elif args.command == "add":
+            quick_task = sys.argv[2:]
+            task_str =  " ".join(quick_task)
+            task = parse_new_task_string(task_str, categories)
+            write_task(tasks_file, task.category, task.task, task.notes)
+            print(f"Logged: {task.category} : {task.task} : {task.notes}")
         elif args.command == "report":
             # Implement report logic
             console = Console()
