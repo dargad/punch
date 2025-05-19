@@ -1,10 +1,9 @@
 import os
 from playwright.sync_api import sync_playwright
 from punch.tasks import read_tasklog
-from datetime import datetime
+from datetime import datetime, time
 from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn
 from rich.console import Console
-import time
 import re
 from punch.config import get_config_path, load_config
 
@@ -29,7 +28,7 @@ def login_to_site():
     console = Console()
     auth_json_path = get_auth_json_path()
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
+        browser = p.firefox.launch(headless=False)
         if os.path.exists(auth_json_path):
             context = browser.new_context(storage_state=auth_json_path)
             console.print("[cyan]Loaded existing authentication from auth.json[/cyan]")
@@ -103,18 +102,22 @@ def extract_case_number(task):
         return match.group(1).zfill(8)
     return None
 
-def submit_timecards(file_path="tasks.txt", headless=True):
+def submit_timecards(file_path="tasks.txt", headless=True, date_from=None, date_to=None):
+    """
+    Submits timecards for tasks between date_from and date_to (inclusive).
+    date_from and date_to should be datetime.date objects or None (defaults to all).
+    """
     PROGRESS_WIDTH = 30  # Constant for progress description width
 
     console = Console()
     auth_json_path = get_auth_json_path()
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=headless)
+        browser = p.firefox.launch(headless=headless)
         context = _get_browser_context(console, browser, auth_json_path)
         if context is None:
             return
 
-        entries = _get_valid_entries(console, file_path, browser)
+        entries = _get_valid_entries(console, file_path, browser, date_from, date_to)
         if not entries:
             return
 
@@ -136,13 +139,28 @@ def _get_browser_context(console, browser, auth_json_path):
         browser.close()
         return None
 
-def _get_valid_entries(console, file_path, browser):
+def _get_valid_entries(console, file_path, browser, date_from=None, date_to=None):
     try:
         entries = read_tasklog(file_path)
     except FileNotFoundError:
         console.print("[red]Auth info file not found. Please login first using the 'login' command.[/red]")
         browser.close()
         return None
+
+    # Filter by date range if provided
+    if date_from or date_to:
+        if date_from is None:
+            date_from_dt = datetime.min
+        else:
+            date_from_dt = datetime.combine(date_from, time.min)
+        if date_to is None:
+            date_to_dt = datetime.max
+        else:
+            date_to_dt = datetime.combine(date_to, time.max)
+        entries = [
+            entry for entry in entries
+            if date_from_dt <= entry.finish <= date_to_dt
+        ]
 
     # Skip tasks with duration 0 or ending with **
     entries = [

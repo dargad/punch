@@ -97,7 +97,7 @@ parts:
     override-build: |
       snapcraftctl build
       export PLAYWRIGHT_BROWSERS_PATH=$SNAPCRAFT_PART_INSTALL/playwright-browsers
-      playwright install --with-deps
+      playwright install --with-deps firefox
 
 # Notes:
 # - This snap uses Poetry for dependency management and builds the wheel.
