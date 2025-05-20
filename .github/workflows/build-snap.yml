@@ -14,14 +14,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Snapcraft
-        uses: snapcore/action-build@v1
-
       - name: Build the snap
-        run: snapcraft
+        uses: snapcore/action-build@v1
+        id: snapcraft
 
       - name: Upload Snap artifact
         uses: actions/upload-artifact@v4
         with:
-          name: punch-snap
-          path: ./*.snap
+          name: snap
+          path: ${{ steps.snapcraft.outputs.snap }}
