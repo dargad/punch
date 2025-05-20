@@ -1,93 +1,169 @@
 #compdef punch
 
-# Zsh completion for punch.py
+# Zsh completion for the "punch" CLI tool
+# Provides completion for subcommands, global options, and dynamic task suggestions for "add".
 
-local curcontext="$curcontext" state line
-typeset -A opt_args
+# Load tasks and categories from Punch data (if available)
+local tasks_file=${XDG_DATA_HOME:-$HOME/.local/share}/punch/tasks.txt
+local config_file=${XDG_CONFIG_HOME:-$HOME/.config}/punch/punch.yaml
+typeset -a tasks_lines
+typeset -A cat_short_codes  # map of category short code -> 1 (used as set of known codes)
 
-# Paths
-local config_file="${XDG_CONFIG_HOME:-$HOME/.config}/punch/punch.yaml"
-local tasks_file="${XDG_DATA_HOME:-$HOME/.local/share}/punch/tasks.txt"
-
-# Extract short categories and mapping to full names
-local -a shorts
-local -A short_to_full
-if [[ -f "$config_file" ]]; then
-  local catname=""
-  while IFS= read -r line; do
-    if [[ "$line" =~ '^([[:space:]]*)([A-Za-z0-9 _-]+):[[:space:]]*$' ]]; then
-      catname="${match[2]}"
-    elif [[ "$line" =~ 'short:[[:space:]]*([^[:space:]]+)' ]]; then
-      shorts+=("${match[1]}")
-      short_to_full[${match[1]}]="$catname"
+if [[ -r $tasks_file ]]; then
+  tasks_lines=("${(f)$(<${tasks_file})}")    # read all lines from tasks.txt
+  for line in $tasks_lines; do
+    # Each task line expected as "shortcode:Task Name"
+    if [[ $line =~ ^([A-Za-z0-9]+):(.*) ]]; then
+      local code="${match[1]}"
+      cat_short_codes[$code]=1
     fi
-  done < "$config_file"
+  done
 fi
 
+# Also collect category codes from config (if tasks file is empty or new categories exist)
+if [[ -r $config_file ]]; then
+  # Extract lines containing "short:" to gather short codes
+  while IFS= read -r cfgline; do
+    if [[ $cfgline == *short:* ]]; then
+      local code="${cfgline##*short:}"        # get content after 'short:'
+      code="${code//[[:space:]]/}"            # remove any whitespace
+      if [[ -n $code ]]; then
+        cat_short_codes[$code]=1
+      fi
+    fi
+  done < $config_file
+fi
+
+# Define subcommand names and their descriptions (for first argument completion)
 local -a subcommands
-subcommands=(new report export login submit)
-local -a opts_report
-opts_report=(-f --from -t --to)
-local -a opts_export
-opts_export=(-f --from -t --to --format -o --output)
-local -a opts_submit
-opts_submit=(-f --from -t --to -n --dry-run --headed)
-local -a opts_global
-opts_global=(-v --version)
+subcommands=(
+  'start:Mark the start of your day:contentReference[oaicite:10]{index=10}'
+  'add:Add a new task entry (category:task)'
+  'report:Print a report of your timecards:contentReference[oaicite:11]{index=11}'
+  'export:Export timecards to CSV/JSON:contentReference[oaicite:12]{index=12}'
+  'login:Log in to Salesforce (store credentials):contentReference[oaicite:13]{index=13}'
+  'submit:Submit timecards to Salesforce:contentReference[oaicite:14]{index=14}'
+)
 
-# If first arg is not a subcommand, suggest quick task entry
-if (( CURRENT == 2 )); then
-  if ! [[ " ${subcommands[@]} " == *" $words[2] "* ]]; then
-    _describe 'short category' shorts
-    return
-  fi
-fi
+# Global options (available before or after subcommand)
+local -a global_opts
+global_opts=(
+  '(-h --help)'{-h,--help}'[Show help information]'
+)
 
-# Subcommand completion
-if (( CURRENT == 2 )); then
-  _describe 'subcommand' subcommands
-  _describe 'global option' opts_global
-  return
-fi
+# Now use _arguments to parse the command line context
+_arguments -C \
+  $global_opts \
+  '1: :->cmd' \
+  '*:: :->args'
 
-# Option completion for subcommands
-case "$words[2]" in
-  report)
-    _describe 'option' opts_report
-    return
+case $state in
+  cmd)
+    # Completing the first argument (command name)
+    # Offer subcommand names and also category codes if user might be using quick entry.
+    # However, to avoid confusion with subcommands, we only list actual subcommands here.
+    _describe -t commands "punch command" subcommands
     ;;
-  export)
-    _describe 'option' opts_export
-    return
-    ;;
-  submit)
-    _describe 'option' opts_submit
-    return
+  args)
+    # Subcommand-specific completions
+    case $words[1] in
+      # --- start: no extra arguments ---
+      start)
+        _arguments $global_opts   # allow help option after "start"
+        ;;
+      add)
+        # Build short-to-full mapping from config file
+        # print -ru2 -- "DEBUG config_file: $config_file" >> /tmp/punch-zsh-debug.log
+        typeset -A short_to_full
+        if [[ -r $config_file ]]; then
+          local cur_cat=""
+          while IFS= read -r cfgline; do
+            # Detect category name (YAML key)
+            if [[ $cfgline == *short:* ]]; then
+              # print -ru2 -- "DEBUG cfgline2: $cfgline" >> /tmp/punch-zsh-debug.log
+              local code="${cfgline##*short:}"
+              code="${code//[[:space:]]/}"
+              if [[ -n $code && -n $cur_cat ]]; then
+                # print -ru2 -- "DEBUG short code: $code, category: $cur_cat" >> /tmp/punch-zsh-debug.log
+                short_to_full[$code]="$cur_cat"
+              fi
+            elif [[ $cfgline =~ ^[[:space:]][[:space:]]([^:]+): ]]; then
+              # print -ru2 -- "DEBUG cfgline1: $cfgline" >> /tmp/punch-zsh-debug.log
+              cur_cat="${match[1]}"
+            fi
+          done < "$config_file"
+        fi
+        
+        if (( CURRENT == 2 )); then
+          # Complete category short codes (with colon)
+          local -a shorts
+          shorts=(${(k)short_to_full})
+          # print -ru2 -- "DEBUG shorts=(${shorts[@]})" >> /tmp/punch-zsh-debug.log
+          # print -ru2 -- "DEBUG short_to_full:" >> /tmp/punch-zsh-debug.log
+          # for s in "${(@k)short_to_full}"; do
+            # print -ru2 -- "  $s -> ${short_to_full[$s]}" >> /tmp/punch-zsh-debug.log
+          # done
+          compadd -Q -S ':' -- $shorts
+        elif (( CURRENT == 3 )); then
+          # print -ru2 -- "DEBUG CURRENT=3" >> /tmp/punch-zsh-debug.log
+          # Complete tasks for the selected category
+          local prev=${words[2]}
+          local catcode="${prev%:}"
+          local fullcat="${short_to_full[$catcode]}"
+          # print -ru2 -- "DEBUG catcode: $catcode, fullcat: $fullcat" >> /tmp/punch-zsh-debug.log
+          local -a task_suggestions=()
+          for line in "${tasks_lines[@]}"; do
+            IFS='|' read -r ts category task rest <<< "$line"
+            category="${category#"${category%%[![:space:]]*}"}"
+            category="${category%"${category##*[![:space:]]}"}"
+            task="${task#"${task%%[![:space:]]*}"}"
+            task="${task%"${task##*[![:space:]]}"}"
+            # print -ru2 -- "DEBUG category: $category, task: $task" >> /tmp/punch-zsh-debug.log
+            if [[ "$category" == "$fullcat" && -n "$task" ]]; then
+              task_suggestions+="$task"
+            fi
+          done
+          compadd -Q -U -S '' -- $task_suggestions
+        elif (( CURRENT == 4 )); then
+          _message "Enter optional notes for the task"
+        fi
+        ;;
+      # --- report: options -f/--from, -t/--to ---
+      report)
+        _arguments $global_opts \
+          '--from=-[Start date YYYY-MM-DD]:start date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"' \
+          '-f+-[Start date YYYY-MM-DD]:start date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"' \
+          '--to=-[End date YYYY-MM-DD]:end date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"' \
+          '-t+-[End date YYYY-MM-DD]:end date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"'
+        ;;
+
+      # --- export: options -f/--from, -t/--to, -o/--output, --format ---
+      export)
+        _arguments $global_opts \
+          '--format=[Output format]:format:(csv json)' \
+          '--output=-[Output file]:filename:_files' \
+          '-o+[Output file]:filename:_files' \
+          '--from=-[Start date YYYY-MM-DD]:start date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"' \
+          '-f+-[Start date YYYY-MM-DD]:start date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"' \
+          '--to=-[End date YYYY-MM-DD]:end date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"' \
+          '-t+-[End date YYYY-MM-DD]:end date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"'
+        ;;
+
+      # --- login: no options except help ---
+      login)
+        _arguments $global_opts    # only -h/--help is relevant
+        ;;
+
+      # --- submit: --headed option ---
+      submit)
+        _arguments $global_opts \
+          '--headed[Run browser in headed mode (not headless)]' \
+          '--from=-[Start date YYYY-MM-DD]:start date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"' \
+          '-f+-[Start date YYYY-MM-DD]:start date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"' \
+          '--to=-[End date YYYY-MM-DD]:end date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"' \
+          '-t+-[End date YYYY-MM-DD]:end date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"'
+        ;;
+
+    esac
     ;;
 esac
-
-# Quick task entry: <short-category> : <task name> [: notes]
-# Detect if we are after "<short> :"
-if (( CURRENT == 4 )) && [[ " ${shorts[@]} " == *" $words[2] "* && "$words[3]" == ":" ]]; then
-  # Find full category name
-  local fullcat="${short_to_full[$words[2]]}"
-  # Extract tasks for this category from tasks.txt
-  if [[ -f "$tasks_file" && -n "$fullcat" ]]; then
-    local -a tasks
-    tasks=("${(@f)$(awk -F'|' -v cat="$fullcat" '{gsub(/^ +| +$/,"",$0); if ($2 == cat) print $3}' "$tasks_file" | sort -u)}")
-    _describe 'task' tasks
-    return
-  fi
-fi
-
-# After "<short> :", allow free text (new task)
-if (( CURRENT == 4 )) && [[ "$words[3]" == ":" ]]; then
-  compadd
-  return
-fi
-
-# After "<short> : <task>", suggest nothing (notes are free text)
-if (( CURRENT == 5 )) && [[ "$words[3]" == ":" ]]; then
-  compadd
-  return
-fi
