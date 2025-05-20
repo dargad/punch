@@ -183,7 +183,7 @@ def print_report(report):
             total_duration += duration
 
     total_minutes = int(total_duration.total_seconds() // 60)
-    tree.add(f"[bold yellow]Total: {str(total_duration).rjust(max_left_len + 10)} ({total_minutes} min)[/bold yellow]")
+    tree.add(f"[bold yellow]Total: {str(total_duration).rjust(max_left_len+8)} ({total_minutes} min)[/bold yellow]")
 
     console.print(tree)
 
