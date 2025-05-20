@@ -86,6 +86,8 @@ def prepare_parser():
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands", required=False)
 
+    parser_start = subparsers.add_parser("start", help="Login to your timecards account")
+
     parser_report = subparsers.add_parser("report", help="Print a report of your timecards")
     parser_report.add_argument(
         "-f", "--from", default=today_str, type=valid_date, help="Specify the start date for the report (YYYY-MM-DD)"
