@@ -30,7 +30,7 @@ def login_to_site():
     console = Console()
     auth_json_path = get_auth_json_path()
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
+        browser = p.firefox.launch(headless=False)
         if os.path.exists(auth_json_path):
             context = browser.new_context(storage_state=auth_json_path)
             console.print("[cyan]Loaded existing authentication from auth.json[/cyan]")
@@ -114,7 +114,7 @@ def submit_timecards(file_path="tasks.txt", headless=True, date_from=None, date_
     console = Console()
     auth_json_path = get_auth_json_path()
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=headless)
+        browser = p.firefox.launch(headless=headless)
         context = _get_browser_context(console, browser, auth_json_path)
         if context is None:
             return
