@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "punch"
+version = "1.0.0"
+description = "A CLI tool for tracking, reporting, and submitting your work tasks and timecards."
+authors = ["Dariusz Gadomski <dgadomski@ubuntu.com>"]
+license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/dargad/punch"
+repository = "https://github.com/dargad/punch"
+packages = [{ include = "punch" }]
+
+[tool.poetry.dependencies]
+python = ">=3.8"
+rich = ">=13.0.0"
+pyyaml = ">=6.0"
+playwright = ">=1.40.0"
+
+[tool.poetry.scripts]
+punch = "punch.cli:main"
+
+[build-system]
+requires = ["poetry-core>=1.5.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
