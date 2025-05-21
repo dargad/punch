@@ -7,8 +7,21 @@ from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn
 from rich.console import Console
 import re
 from punch.config import get_config_path, load_config
+import sys
 
-TIMECARDS_LINK = "https://canonical.lightning.force.com/lightning/o/TimeCard__c/new"
+class MissingTimecardsUrl(Exception):
+    pass
+
+def get_timecards_link():
+    """
+    Fetch the timecards link from config, or raise if not set.
+    """
+    config_path = get_config_path()
+    config = load_config(config_path)
+    url = config.get("timecards_url")
+    if not url:
+        raise MissingTimecardsUrl("No timecards_url found in config. Please set it in your config file.")
+    return url
 
 def get_auth_json_path():
     config_path = get_config_path()
@@ -29,6 +42,7 @@ def log_redirects(request):
 def login_to_site():
     console = Console()
     auth_json_path = get_auth_json_path()
+    timecards_link = get_timecards_link()
     with sync_playwright() as p:
         browser = p.firefox.launch(headless=False)
         if os.path.exists(auth_json_path):
@@ -40,11 +54,11 @@ def login_to_site():
         page = context.new_page()
         page.on("request", log_redirects)
 
-        console.print(f"[cyan]Opening login page: {TIMECARDS_LINK}[/cyan]")
-        page.goto(TIMECARDS_LINK)
+        console.print(f"[cyan]Opening login page: {timecards_link}[/cyan]")
+        page.goto(timecards_link)
 
-        console.print(f"[cyan]Waiting for login at {TIMECARDS_LINK}...[/cyan]")
-        page.wait_for_url(TIMECARDS_LINK, timeout=30000)
+        console.print(f"[cyan]Waiting for login at {timecards_link}...[/cyan]")
+        page.wait_for_url(timecards_link, timeout=30000)
         console.print("[green]Login successful.[/green]")
 
         context.storage_state(path=auth_json_path)
@@ -176,9 +190,10 @@ def _get_valid_entries(console, file_path, browser, date_from=None, date_to=None
     return entries
 
 def _login_to_timecards(console, page):
-    page.goto(TIMECARDS_LINK)
-    console.print(f"[cyan]Waiting for login at {TIMECARDS_LINK}...[/cyan]")
-    page.wait_for_url(TIMECARDS_LINK, timeout=30000)
+    timecards_link = get_timecards_link()
+    page.goto(timecards_link)
+    console.print(f"[cyan]Waiting for login at {timecards_link}...[/cyan]")
+    page.wait_for_url(timecards_link, timeout=30000)
     console.print("[green]Login successful. Submitting timecards...[/green]")
 
 def _submit_entries_with_progress(console, page, entries, PROGRESS_WIDTH):

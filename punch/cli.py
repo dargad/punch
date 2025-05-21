@@ -10,9 +10,8 @@ from punch.config import load_config, get_config_path, get_tasks_file
 from punch.export import export_csv, export_json
 from punch.tasks import get_recent_tasks, write_task, parse_new_task_string
 from punch.report import generate_report
-from punch.web import login_to_site, submit_timecards
+from punch.web import login_to_site, submit_timecards, MissingTimecardsUrl
 
-SUBCOMMANDS = ["new", "report", "export", "login", "submit"]
 
 def select_from_list(console, items, prompt, style="bold yellow"):
     """
@@ -227,11 +226,23 @@ def main():
             elif args.format == "csv":
                 print(export_csv(tasks_file, getattr(args, 'from'), args.to))
         elif args.command == "login":
-            login_to_site()
+            try:
+                login_to_site()
+            except MissingTimecardsUrl as e:
+                from rich.console import Console
+                console = Console()
+                console.print(f"[red]{e}[/red]")
+                sys.exit(1)
         elif args.command == "submit":
-            submit_timecards(
-                tasks_file,
-                headless=not args.headed,
-                date_from=getattr(args, 'from', None),
-                date_to=getattr(args, 'to', None)
-            )
+            try:
+                submit_timecards(
+                    tasks_file,
+                    headless=not args.headed,
+                    date_from=getattr(args, 'from', None),
+                    date_to=getattr(args, 'to', None)
+                )
+            except MissingTimecardsUrl as e:
+                from rich.console import Console
+                console = Console()
+                console.print(f"[red]{e}[/red]")
+                sys.exit(1)
