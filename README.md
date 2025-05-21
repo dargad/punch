@@ -48,7 +48,7 @@ Punch uses YAML for configuration.
 
 ```yaml
 full_name: Dariusz Gadomski
-tasks_file: tasks.txt
+timecards_url: <URL for submitting your timecards>
 
 categories:
   Coding:
@@ -164,7 +164,7 @@ Example:
 ## Shell Completion
 
 - **Bash:** Use `punch-completion.bash` for autocompletion.
-- **Zsh:** Use `_punch.py` for smart completion.
+- **Zsh:** Use `zsh-completion` for smart completion.
 
 ---
 
