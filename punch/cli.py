@@ -1,10 +1,9 @@
-import os
-from argparse import ArgumentParser
-import sys
-from rich.console import Console
-import datetime
-from rich.tree import Tree
 from datetime import datetime, time, timedelta
+import os
+import sys
+from argparse import ArgumentParser
+from rich.console import Console
+from rich.tree import Tree
 
 from punch.config import load_config, get_config_path, get_tasks_file
 from punch.export import export_csv, export_json
@@ -196,7 +195,7 @@ def main():
     config = load_config(config_path)
     tasks_file = get_tasks_file()
     categories = config.get('categories', [])
-
+    console = Console()
 
     # If no arguments, enter interactive mode
     if len(sys.argv) == 1:
@@ -216,7 +215,6 @@ def main():
             print(f"Logged: {task.category} : {task.task} : {task.notes}")
         elif args.command == "report":
             # Implement report logic
-            console = Console()
             console.print(f"From: {getattr(args, 'from')} To: {getattr(args, 'to')}", style="bold blue")
             report = generate_report(tasks_file, getattr(args, 'from'), args.to)
             print_report(report)
@@ -229,8 +227,6 @@ def main():
             try:
                 login_to_site()
             except MissingTimecardsUrl as e:
-                from rich.console import Console
-                console = Console()
                 console.print(f"[red]{e}[/red]")
                 sys.exit(1)
         elif args.command == "submit":
@@ -242,7 +238,5 @@ def main():
                     date_to=getattr(args, 'to', None)
                 )
             except MissingTimecardsUrl as e:
-                from rich.console import Console
-                console = Console()
                 console.print(f"[red]{e}[/red]")
                 sys.exit(1)
