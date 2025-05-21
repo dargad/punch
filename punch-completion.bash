@@ -5,9 +5,22 @@ _punch_complete()
     local cur prev words cword
     _init_completion || return
 
-    # Paths
-    local config_file="${XDG_CONFIG_HOME:-$HOME/.config}/punch/punch.yaml"
-    local tasks_file="${XDG_DATA_HOME:-$HOME/.local/share}/punch/tasks.txt"
+    # Prefer Snap paths if they exist
+    local snap_dir="$HOME/snap/punch/current"
+    local config_file
+    local tasks_file
+
+    if [[ -f "$snap_dir/.config/punch/punch.yaml" ]]; then
+        config_file="$snap_dir/.config/punch/punch.yaml"
+    else
+        config_file="${XDG_CONFIG_HOME:-$HOME/.config}/punch/punch.yaml"
+    fi
+
+    if [[ -f "$snap_dir/.local/share/punch/tasks.txt" ]]; then
+        tasks_file="$snap_dir/.local/share/punch/tasks.txt"
+    else
+        tasks_file="${XDG_DATA_HOME:-$HOME/.local/share}/punch/tasks.txt"
+    fi
 
     # Extract short categories and mapping to full names
     local shorts
