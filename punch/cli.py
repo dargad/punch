@@ -186,12 +186,20 @@ def print_report(report):
                 if notes:
                     left += f" | {notes}"
             # Pad left part so all durations align
-            line = f"{left.ljust(max_left_len)} {str(duration).rjust(10)} ({minutes} min)"
+            # Format duration as H:MM (no seconds, no days)
+            hours = int(duration.total_seconds() // 3600)
+            minutes = int((duration.total_seconds() % 3600) // 60)
+            duration_str = f"{hours}:{minutes:02d}"
+            line = f"{left.ljust(max_left_len)} {duration_str.rjust(10)} ({minutes + hours*60} min)"
             cat_node.add(line)
             total_duration += duration
 
     total_minutes = int(total_duration.total_seconds() // 60)
-    tree.add(f"[bold yellow]Total: {str(total_duration).rjust(max_left_len+8)} ({total_minutes} min)[/bold yellow]")
+    total_hours = int(total_duration.total_seconds() // 3600)
+    remainder_minutes = total_minutes % 60
+    # Print total as H:MM (not days)
+    total_str = f"{total_hours}:{remainder_minutes:02d}"
+    tree.add(f"[bold yellow]Total: {total_str.rjust(max_left_len+8)} ({total_minutes} min)[/bold yellow]")
 
     console.print(tree)
 
