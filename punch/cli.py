@@ -73,6 +73,16 @@ def valid_date(date_str):
     except ValueError:
         raise ValueError("Invalid date format. Use YYYY-MM-DD.")
 
+def escape_separators(s):
+    """
+    Escapes colons in the input string to avoid splitting on them,
+    but only if the colon is not the first or last character.
+    """
+    if len(s) <= 2:
+        return s
+    # Replace ":" with "\:" only if not at the start or end
+    return s[0] + s[1:-1].replace(":", r"\:") + s[-1]
+
 def prepare_parser():    
     parser = ArgumentParser(description="punch - a CLI tool for managing your tasks")
     parser.add_argument(
@@ -209,7 +219,8 @@ def main():
             write_task(tasks_file, "", "start", "")
         elif args.command == "add":
             quick_task = sys.argv[2:]
-            task_str =  " ".join(quick_task)
+            task_str =  " ".join([escape_separators(s) for s in quick_task])
+            print(f"Adding task: {task_str}")
             task = parse_new_task_string(task_str, categories)
             write_task(tasks_file, task.category, task.task, task.notes)
             print(f"Logged: {task.category} : {task.task} : {task.notes}")

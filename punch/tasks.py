@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import datetime
 import os
+import re
 
 @dataclass
 class TaskEntry:
@@ -121,7 +122,10 @@ def parse_new_task_string(task_string, categories):
         return TaskEntry(finish, "", task, notes, duration)
 
     # Otherwise, expect <short-category> : <task-name> [: <task-notes>]
-    parts = [part.strip() for part in task_string.split(":", 2)]
+    # Split only on unescaped colons
+    parts = [part.strip() for part in re.split(r'(?<!\\):', task_string, maxsplit=2)]
+    # Unescape any escaped colons and separators in all parts
+    parts = [p.replace(r'\:', ':').replace(f"\\{SEPARATOR}", SEPARATOR) for p in parts]
     if len(parts) < 2:
         raise ValueError("Task string must be in the format '<short-category> : <task-name> [: <task-notes>]' or end with '*' for category-less tasks")
     input_category = parts[0]

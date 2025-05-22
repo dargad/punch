@@ -86,5 +86,23 @@ class TestParseNewTaskString(unittest.TestCase):
         self.assertEqual(entry.task, "breakfast**")
         self.assertEqual(entry.notes, "")
 
+    def test_parse_new_task_string_with_escaped_colon_in_task(self):
+        entry = parse_new_task_string(r'c : Implement foo\:bar : Some notes', CATEGORIES)
+        self.assertEqual(entry.category, "Coding")
+        self.assertEqual(entry.task, "Implement foo:bar")
+        self.assertEqual(entry.notes, "Some notes")
+
+    def test_parse_new_task_string_with_escaped_colon_in_notes(self):
+        entry = parse_new_task_string(r'c : Task name : Note with foo\:bar inside', CATEGORIES)
+        self.assertEqual(entry.category, "Coding")
+        self.assertEqual(entry.task, "Task name")
+        self.assertEqual(entry.notes, "Note with foo:bar inside")
+
+    def test_parse_new_task_string_with_multiple_escaped_colons(self):
+        entry = parse_new_task_string(r'c : foo\:bar\:baz : note\:with\:colons', CATEGORIES)
+        self.assertEqual(entry.category, "Coding")
+        self.assertEqual(entry.task, "foo:bar:baz")
+        self.assertEqual(entry.notes, "note:with:colons")
+
 if __name__ == "__main__":
     unittest.main()
