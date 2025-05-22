@@ -220,7 +220,6 @@ def main():
         elif args.command == "add":
             quick_task = sys.argv[2:]
             task_str =  " ".join([escape_separators(s) for s in quick_task])
-            print(f"Adding task: {task_str}")
             task = parse_new_task_string(task_str, categories)
             write_task(tasks_file, task.category, task.task, task.notes)
             print(f"Logged: {task.category} : {task.task} : {task.notes}")
