@@ -118,7 +118,7 @@ def extract_case_number(task):
         return match.group(1).zfill(8)
     return None
 
-def submit_timecards(file_path="tasks.txt", headless=True, date_from=None, date_to=None):
+def submit_timecards(file_path="tasks.txt", headless=True, sleep=0.0, dry_run=True, date_from=None, date_to=None):
     """
     Submits timecards for tasks between date_from and date_to (inclusive).
     date_from and date_to should be datetime.date objects or None (defaults to all).
@@ -140,7 +140,7 @@ def submit_timecards(file_path="tasks.txt", headless=True, date_from=None, date_
         page = context.new_page()
         _login_to_timecards(console, page)
 
-        _submit_entries_with_progress(console, page, entries, PROGRESS_WIDTH)
+        _submit_entries_with_progress(console, page, entries, PROGRESS_WIDTH, dry_run=dry_run, sleep=sleep)
 
         _cancel_edit(page)
         console.print(f"[bold green]Submitted {len(entries)} entries.[/bold green]")
@@ -196,7 +196,14 @@ def _login_to_timecards(console, page):
     page.wait_for_url(timecards_link, timeout=30000)
     console.print("[green]Login successful. Submitting timecards...[/green]")
 
-def _submit_entries_with_progress(console, page, entries, PROGRESS_WIDTH):
+
+def _reload_timecards(console, page):
+    timecards_link = get_timecards_link()
+    page.goto(timecards_link)
+    page.wait_for_url(timecards_link, timeout=30000)
+
+
+def _submit_entries_with_progress(console, page, entries, PROGRESS_WIDTH, dry_run=True, sleep=0.0):
     from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn
 
     with Progress(
@@ -213,13 +220,31 @@ def _submit_entries_with_progress(console, page, entries, PROGRESS_WIDTH):
             "Submitting entries", total=total, desc="Submitting entries".ljust(PROGRESS_WIDTH), count=f"0/{total}"
         )
         for idx, entry in enumerate(entries, 1):
-            _submit_single_entry(page, entry)
             desc = entry.task
             desc = (desc[:PROGRESS_WIDTH-3] + "...") if len(desc) > PROGRESS_WIDTH else desc.ljust(PROGRESS_WIDTH)
+            progress.update(task, advance=0, desc=desc, count=f"{idx}/{total}")
+            _fill_single_entry(page, entry)
+            if sleep > 0:
+                time.sleep(sleep)
+            if dry_run:
+                # when cancelling, we have to reload the page.
+                # if we are not running headless, we could potentially use
+                # page.pause() instead of _cancel_edit that allows the user to
+                # look over what would be done.  However, they then need to
+                # trigger "Resume", which is tricky to do unless you have the
+                # debugging tools installed.
+                # page.pause()
+                # time.sleep(5)
+                # We don't have to actually cancel, we reload and keep going
+                # _cancel_edit(page)
+                _reload_timecards(console, page)
+            else:
+                # We can reuse the page if we are saving this one
+                _save_and_new(page)
             progress.update(task, advance=1, desc=desc, count=f"{idx}/{total}")
         progress.update(task, completed=total, count=f"{total}/{total}")
 
-def _submit_single_entry(page, entry):
+def _fill_single_entry(page, entry):
     case_no = determine_case_number(entry)
 
     # Fetch full name from config
@@ -248,10 +273,14 @@ def _submit_single_entry(page, entry):
     _fill_date(page, date)
     time_str = entry.finish.strftime("%H:%M")
     _fill_time(page, time_str)
-    page.locator('xpath=//lightning-button[button[@name="SaveAndNew"]]').click()
+
+def _save_and_new(page):
+    # page.locator('xpath=//lightning-button[button[@name="SaveAndNew"]]').click()
+    page.get_by_role("button", name="Save & New").click()
 
 def _cancel_edit(page):
-    page.locator('xpath=//lightning-button[button[@name="CancelEdit"]]').click()
+    page.get_by_role("button", name="Cancel", exact=True).click()
+    # page.locator('xpath=//lightning-button[button[@name="CancelEdit"]]').click()
 
 def _fill_owner(page, value):
     placeholder = "Search People..."
