@@ -140,6 +140,9 @@ def prepare_parser():
     parser_submit.add_argument(
         "--headed", action="store_true", help="Run the browser in headed mode"
     )
+    parser_submit.add_argument(
+        "--sleep", type=float, default=0, help="Sleep for X seconds after filling out the form"
+    )
 
     return parser
 
@@ -252,6 +255,7 @@ def main():
                 submit_timecards(
                     tasks_file,
                     headless=not args.headed,
+                    sleep=args.sleep,
                     date_from=getattr(args, 'from', None),
                     date_to=getattr(args, 'to', None)
                 )
