@@ -75,12 +75,12 @@ def get_recent_tasks(taskfile, category):
             seen.add(entry.task)
     return recent_tasks
 
-def write_task(taskfile, category, task, notes):
+def write_task(taskfile, category, task, notes, finish=None):
     """
     Writes a new task entry to the task log.
     If category is empty, omit it from the output.
     """
-    finish = datetime.datetime.now()
+    finish = finish or datetime.datetime.now()
 
     # Ensure the target directory exists
     os.makedirs(os.path.dirname(taskfile), exist_ok=True)

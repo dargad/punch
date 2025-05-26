@@ -94,7 +94,10 @@ def prepare_parser():
 
     subparsers = parser.add_subparsers(dest="command", help="Available commands", required=False)
 
-    parser_start = subparsers.add_parser("start", help="Login to your timecards account")
+    parser_start = subparsers.add_parser("start", help="Mark the start of your workday")
+    parser_start.add_argument(
+        "-t", "--time", type=lambda s: datetime.strptime(s, "%H:%M").time(), help="Specify the start time (HH:MM)"
+    )
 
     parser_report = subparsers.add_parser("report", help="Print a report of your timecards")
     parser_report.add_argument(
@@ -257,7 +260,12 @@ def main():
         args = parser.parse_args()
         
         if args.command == "start":
-            write_task(tasks_file, "", "start", "")
+            # Set the datetime to today with the time from args.time
+            start_dt = None
+            if args.time:
+                now = datetime.now()
+                start_dt = datetime.combine(now.date(), args.time)
+            write_task(tasks_file, "", "start", "", start_dt)
         elif args.command == "help":
             parser.print_help()
         elif args.command == "add":
