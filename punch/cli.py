@@ -9,7 +9,7 @@ from punch.config import load_config, get_config_path, get_tasks_file
 from punch.export import export_csv, export_json
 from punch.tasks import get_recent_tasks, write_task, parse_new_task_string
 from punch.report import generate_report
-from punch.web import get_timecards, login_to_site, submit_timecards, MissingTimecardsUrl
+from punch.web import DRY_RUN_SUFFIX, get_timecards, login_to_site, submit_timecards, MissingTimecardsUrl
 
 
 def select_from_list(console, items, prompt, style="bold yellow"):
@@ -221,8 +221,8 @@ def show_timecards_table(timecards):
     table = Table(title="Timecards for submission")
 
     table.add_column("Case no.", justify="center", style="cyan")
-    table.add_column("Desc", justify="left", style="magenta")
-    table.add_column("Work performed", justify="left", style="green")
+    table.add_column("Task", justify="left", style="magenta", max_width=50, no_wrap=True)
+    table.add_column("Work performed", justify="left", style="green", max_width=50, no_wrap=True)
     table.add_column("Minutes", justify="right", style="yellow")
     table.add_column("Start time", justify="right", style="blue")
 
@@ -293,9 +293,13 @@ def main():
         elif args.command == "submit":
             try:
                 timecards = get_timecards(tasks_file, getattr(args, 'from'), args.to)
+                if not timecards or len(timecards) == 0:
+                    console.print("No timecards found for submission.", style="bold red")
+                    return
                 show_timecards_table(timecards)
                 
-                proceed = console.input("Proceed with submission? (y/N): ").strip().lower()
+                suffix = DRY_RUN_SUFFIX if args.dry_run else ""
+                proceed = console.input(f"Proceed with submission?{suffix} (y/N): ").strip().lower()
                 if proceed != "y":
                     console.print("Submission cancelled.", style="bold yellow")
                     return

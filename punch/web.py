@@ -241,10 +241,6 @@ def _get_valid_entries(console, file_path, browser, date_from=None, date_to=None
         entry for entry in entries
         if entry.duration.total_seconds() > 0 and not entry.task.endswith("**")
     ]
-    if not entries:
-        console.print("[yellow]No tasks to submit.[/yellow]")
-        browser.close()
-        return None
     return entries
 
 def _login_to_timecards(console, page):
@@ -273,6 +269,8 @@ def _submit_entries_with_progress(console, page, timecards, PROGRESS_WIDTH, dry_
         for idx, timecard in enumerate(timecards, 1):
             if not dry_run:
                 _submit_single_entry(page, timecard)
+            else:
+                time.sleep(0.2)
             desc = timecard.desc
             desc = (desc[:PROGRESS_WIDTH-3] + "...") if len(desc) > PROGRESS_WIDTH else desc.ljust(PROGRESS_WIDTH)
             progress.update(task, advance=1, desc=desc, count=f"{idx}/{total}")
