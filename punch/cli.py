@@ -145,6 +145,9 @@ def prepare_parser():
     parser_submit.add_argument(
         "--headed", action="store_true", help="Run the browser in headed mode"
     )
+    parser_submit.add_argument(
+        "-i", "--interactive", action="store_true", help="Run in interactive mode (punch fills the form you click 'Save & New'). Implies --headed."
+    )
 
     return parser
 
@@ -292,6 +295,9 @@ def main():
                 sys.exit(1)
         elif args.command == "submit":
             try:
+                if args.interactive:
+                    args.headed = True  # --interactive implies --headed
+
                 timecards = get_timecards(tasks_file, getattr(args, 'from'), args.to)
                 if not timecards or len(timecards) == 0:
                     console.print("No timecards found for submission.", style="bold red")
@@ -304,7 +310,7 @@ def main():
                     console.print("Submission cancelled.", style="bold yellow")
                     return
 
-                submit_timecards(timecards, headless=not args.headed, dry_run=args.dry_run)
+                submit_timecards(timecards, headless=not args.headed, interactive=args.interactive, dry_run=args.dry_run)
             except MissingTimecardsUrl as e:
                 console.print(f"[red]{e}[/red]")
                 sys.exit(1)

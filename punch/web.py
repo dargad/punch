@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 import os
 import time
-from playwright.sync_api import sync_playwright
+from playwright.sync_api import sync_playwright, Error as playwright_error
 from punch.tasks import read_tasklog
 import datetime
 from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn
@@ -44,7 +44,6 @@ def get_auth_json_path():
     return os.path.join(auth_dir, "auth.json")
 
 def log_redirects(request):
-    pass
     from rich.console import Console
     console = Console()
     if request.redirected_from:
@@ -172,7 +171,7 @@ def get_timecards(file_path="tasks.txt", date_from=None, date_to=None):
         return []
     return [_convert_to_timecard(entry) for entry in entries]
 
-def submit_timecards(timecards, headless=True, dry_run=False):
+def submit_timecards(timecards, headless=True, interactive=False, dry_run=False):
     """
     Submits timecards for tasks between date_from and date_to (inclusive).
     date_from and date_to should be datetime.date objects or None (defaults to all).
@@ -181,8 +180,6 @@ def submit_timecards(timecards, headless=True, dry_run=False):
     if not timecards or len(timecards) == 0:
         console.print("[yellow]No timecards to submit.[/yellow]")
         return
-
-    PROGRESS_WIDTH = 30  # Constant for progress description width
 
     console = Console()
     auth_json_path = get_auth_json_path()
@@ -194,15 +191,25 @@ def submit_timecards(timecards, headless=True, dry_run=False):
             return
 
         page = context.new_page()
+        page.on("request", log_redirects)
         
         if _login_to_timecards(console, page):
             console.print(f"[green]Login successful. Submitting timecards...[/green]{suffix}")
 
-        _submit_entries_with_progress(console, page, timecards, PROGRESS_WIDTH, dry_run)
+        try:
+            _submit_entries_with_progress(console, page, timecards, interactive, dry_run)
+        except playwright_error:
+            console.print("[red]The browser window was closed before submission could complete.[/red]")
+            return
 
-        _cancel_edit(page)
-        console.print(f"[bold green]Submitted {len(timecards)} entries.{suffix}[/bold green]")
-        browser.close()
+        if not interactive:
+            _cancel_edit(page)
+            console.print(f"[bold green]Submitted {len(timecards)} entries.{suffix}[/bold green]")
+            browser.close()
+        else:
+            console.print("[yellow]Interactive mode enabled. Please review the entries before submitting.[/yellow]")
+            console.print("[yellow]Close the browser window when done.[/yellow]")
+            page.wait_for_event("close", timeout=0)
 
 def _get_browser_context(console, browser, auth_json_path):
     try:
@@ -250,8 +257,10 @@ def _login_to_timecards(console, page):
     page.wait_for_url(timecards_link, timeout=30000)
     return True
 
-def _submit_entries_with_progress(console, page, timecards, PROGRESS_WIDTH, dry_run):
+def _submit_entries_with_progress(console, page, timecards, interactive, dry_run):
     from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn
+
+    PROGRESS_WIDTH = 30  # Constant for progress description width
 
     with Progress(
         TextColumn("{task.fields[desc]}", justify="left", style="white"),
@@ -268,7 +277,7 @@ def _submit_entries_with_progress(console, page, timecards, PROGRESS_WIDTH, dry_
         )
         for idx, timecard in enumerate(timecards, 1):
             if not dry_run:
-                _submit_single_entry(page, timecard)
+                _submit_single_entry(page, timecard, interactive)
             else:
                 time.sleep(0.2)
             desc = timecard.desc
@@ -276,8 +285,8 @@ def _submit_entries_with_progress(console, page, timecards, PROGRESS_WIDTH, dry_
             progress.update(task, advance=1, desc=desc, count=f"{idx}/{total}")
         progress.update(task, completed=total, count=f"{total}/{total}")
 
-def _submit_single_entry(page, timecard_entry):
-    _fill_owner(page, time)
+def _submit_single_entry(page, timecard_entry, interactive):
+    _fill_owner(page, timecard_entry.owner)
 
     _fill_case_number(page, timecard_entry.case_no)
 
@@ -288,7 +297,9 @@ def _submit_single_entry(page, timecard_entry):
     _fill_date(page, date)
     time_str = timecard_entry.start_time.strftime("%H:%M")
     _fill_time(page, time_str)
-    page.locator('xpath=//lightning-button[button[@name="SaveAndNew"]]').click()
+
+    if not interactive:
+        page.locator('xpath=//lightning-button[button[@name="SaveAndNew"]]').click()
 
 def _cancel_edit(page):
     page.locator('xpath=//lightning-button[button[@name="CancelEdit"]]').click()
