@@ -10,6 +10,8 @@ import re
 from punch.config import get_config_path, load_config
 import sys
 
+DRY_RUN_SUFFIX = " (dry run)"
+
 @dataclass
 class TimecardEntry:
     case_no: str
@@ -184,6 +186,7 @@ def submit_timecards(timecards, headless=True, dry_run=False):
 
     console = Console()
     auth_json_path = get_auth_json_path()
+    suffix = DRY_RUN_SUFFIX if dry_run else ""
     with sync_playwright() as p:
         browser = p.firefox.launch(headless=headless)
         context = _get_browser_context(console, browser, auth_json_path)
@@ -191,12 +194,14 @@ def submit_timecards(timecards, headless=True, dry_run=False):
             return
 
         page = context.new_page()
-        _login_to_timecards(console, page)
+        
+        if _login_to_timecards(console, page):
+            console.print(f"[green]Login successful. Submitting timecards...[/green]{suffix}")
 
         _submit_entries_with_progress(console, page, timecards, PROGRESS_WIDTH, dry_run)
 
         _cancel_edit(page)
-        console.print(f"[bold green]Submitted {len(timecards)} entries.[/bold green]")
+        console.print(f"[bold green]Submitted {len(timecards)} entries.{suffix}[/bold green]")
         browser.close()
 
 def _get_browser_context(console, browser, auth_json_path):
@@ -247,7 +252,7 @@ def _login_to_timecards(console, page):
     page.goto(timecards_link)
     console.print(f"[cyan]Waiting for login at {timecards_link}...[/cyan]")
     page.wait_for_url(timecards_link, timeout=30000)
-    console.print("[green]Login successful. Submitting timecards...[/green]")
+    return True
 
 def _submit_entries_with_progress(console, page, timecards, PROGRESS_WIDTH, dry_run):
     from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn
