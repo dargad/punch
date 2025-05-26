@@ -86,9 +86,10 @@ def escape_separators(s):
 def prepare_parser():    
     parser = ArgumentParser(description="punch - a CLI tool for managing your tasks")
     parser.add_argument(
-        "-v", "--version", action="version", version="%(prog)s 0.1.3",
+        "-V", "--version", action="version", version="%(prog)s 0.1.3",
         help="Show the version of the program"
     )
+    parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
 
     today_str = datetime.now().strftime("%Y-%m-%d")
 
@@ -289,7 +290,7 @@ def main():
                 print(export_csv(tasks_file, getattr(args, 'from'), args.to))
         elif args.command == "login":
             try:
-                login_to_site()
+                login_to_site(args.verbose)
             except MissingTimecardsUrl as e:
                 console.print(f"[red]{e}[/red]")
                 sys.exit(1)
@@ -310,7 +311,14 @@ def main():
                     console.print("Submission cancelled.", style="bold yellow")
                     return
 
-                submit_timecards(timecards, headless=not args.headed, interactive=args.interactive, dry_run=args.dry_run)
+                submit_timecards(
+                    timecards,
+                    headless=not args.headed,
+                    interactive=args.interactive,
+                    dry_run=args.dry_run,
+                    verbose=args.verbose
+                )
+
             except MissingTimecardsUrl as e:
                 console.print(f"[red]{e}[/red]")
                 sys.exit(1)

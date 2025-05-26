@@ -51,7 +51,7 @@ def log_redirects(request):
             f"[yellow]Redirected from[/yellow] [cyan]{request.redirected_from.url}[/cyan] [yellow]to[/yellow] [cyan]{request.url}[/cyan]"
         )
 
-def login_to_site():
+def login_to_site(verbose=False):
     console = Console()
     auth_json_path = get_auth_json_path()
     timecards_link = get_timecards_link()
@@ -64,7 +64,8 @@ def login_to_site():
             context = browser.new_context()
             console.print("[yellow]No auth.json found, starting fresh browser session[/yellow]")
         page = context.new_page()
-        page.on("request", log_redirects)
+        if verbose:
+            page.on("request", log_redirects)
 
         console.print(f"[cyan]Opening login page: {timecards_link}[/cyan]")
         page.goto(timecards_link)
@@ -171,7 +172,7 @@ def get_timecards(file_path="tasks.txt", date_from=None, date_to=None):
         return []
     return [_convert_to_timecard(entry) for entry in entries]
 
-def submit_timecards(timecards, headless=True, interactive=False, dry_run=False):
+def submit_timecards(timecards, headless=True, interactive=False, dry_run=False, verbose=False):
     """
     Submits timecards for tasks between date_from and date_to (inclusive).
     date_from and date_to should be datetime.date objects or None (defaults to all).
@@ -191,7 +192,8 @@ def submit_timecards(timecards, headless=True, interactive=False, dry_run=False)
             return
 
         page = context.new_page()
-        page.on("request", log_redirects)
+        if verbose:
+            page.on("request", log_redirects)
         
         if _login_to_timecards(console, page):
             console.print(f"[green]Login successful. Submitting timecards...[/green]{suffix}")
