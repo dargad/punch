@@ -149,6 +149,9 @@ def prepare_parser():
     parser_submit.add_argument(
         "-i", "--interactive", action="store_true", help="Run in interactive mode (punch fills the form you click 'Save & New'). Implies --headed."
     )
+    parser_submit.add_argument(
+        "--sleep", type=float, default=0, help="Sleep for X seconds after filling out the form"
+    )
 
     return parser
 
@@ -314,6 +317,7 @@ def main():
                 submit_timecards(
                     timecards,
                     headless=not args.headed,
+                    sleep=args.sleep,
                     interactive=args.interactive,
                     dry_run=args.dry_run,
                     verbose=args.verbose

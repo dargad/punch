@@ -259,7 +259,14 @@ def _login_to_timecards(console, page):
     page.wait_for_url(timecards_link, timeout=30000)
     return True
 
-def _submit_entries_with_progress(console, page, timecards, interactive, dry_run):
+
+def _reload_timecards(console, page):
+    timecards_link = get_timecards_link()
+    page.goto(timecards_link)
+    page.wait_for_url(timecards_link, timeout=30000)
+
+
+def _submit_entries_with_progress(console, page, timecards, interactive, dry_run=True, sleep=0.0):
     from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn
 
     PROGRESS_WIDTH = 30  # Constant for progress description width
@@ -284,6 +291,25 @@ def _submit_entries_with_progress(console, page, timecards, interactive, dry_run
                 time.sleep(0.2)
             desc = timecard.desc
             desc = (desc[:PROGRESS_WIDTH-3] + "...") if len(desc) > PROGRESS_WIDTH else desc.ljust(PROGRESS_WIDTH)
+            progress.update(task, advance=0, desc=desc, count=f"{idx}/{total}")
+            _fill_single_entry(page, entry)
+            if sleep > 0:
+                time.sleep(sleep)
+            if dry_run:
+                # when cancelling, we have to reload the page.
+                # if we are not running headless, we could potentially use
+                # page.pause() instead of _cancel_edit that allows the user to
+                # look over what would be done.  However, they then need to
+                # trigger "Resume", which is tricky to do unless you have the
+                # debugging tools installed.
+                # page.pause()
+                # time.sleep(5)
+                # We don't have to actually cancel, we reload and keep going
+                # _cancel_edit(page)
+                _reload_timecards(console, page)
+            else:
+                # We can reuse the page if we are saving this one
+                _save_and_new(page)
             progress.update(task, advance=1, desc=desc, count=f"{idx}/{total}")
         progress.update(task, completed=total, count=f"{total}/{total}")
 
@@ -300,11 +326,13 @@ def _submit_single_entry(page, timecard_entry, interactive):
     time_str = timecard_entry.start_time.strftime("%H:%M")
     _fill_time(page, time_str)
 
-    if not interactive:
-        page.locator('xpath=//lightning-button[button[@name="SaveAndNew"]]').click()
+def _save_and_new(page):
+    # page.locator('xpath=//lightning-button[button[@name="SaveAndNew"]]').click()
+    page.get_by_role("button", name="Save & New").click()
 
 def _cancel_edit(page):
-    page.locator('xpath=//lightning-button[button[@name="CancelEdit"]]').click()
+    page.get_by_role("button", name="Cancel", exact=True).click()
+    # page.locator('xpath=//lightning-button[button[@name="CancelEdit"]]').click()
 
 def _fill_owner(page, value):
     placeholder = "Search People..."
