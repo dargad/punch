@@ -9,7 +9,7 @@ from punch.config import load_config, get_config_path, get_tasks_file
 from punch.export import export_csv, export_json
 from punch.tasks import get_recent_tasks, write_task, parse_new_task_string
 from punch.report import generate_report
-from punch.web import login_to_site, submit_timecards, MissingTimecardsUrl
+from punch.web import get_timecards, login_to_site, submit_timecards, MissingTimecardsUrl
 
 
 def select_from_list(console, items, prompt, style="bold yellow"):
@@ -205,6 +205,37 @@ def print_report(report):
 
     console.print(tree)
 
+def show_timecards_table(timecards):
+    """
+    Display the timecards in a table format using rich.
+    Expects timecards to be a list of dictionaries with keys:
+    'date', 'category', 'task', 'notes', 'duration'.
+    """
+    from rich.table import Table
+    from rich.console import Console
+
+    console = Console()
+    table = Table(title="Timecards for submission")
+
+    table.add_column("Case no.", justify="center", style="cyan")
+    table.add_column("Desc", justify="left", style="magenta")
+    table.add_column("Work performed", justify="left", style="green")
+    table.add_column("Minutes", justify="right", style="yellow")
+    table.add_column("Start time", justify="right", style="blue")
+
+    for timecard in timecards:
+        table.add_row(
+            timecard.case_no,
+            timecard.desc,
+            timecard.work_performed,
+            str(timecard.minutes),
+            datetime.combine(
+                timecard.start_date, timecard.start_time
+            ).strftime("%Y-%m-%d %H:%M")
+        )
+
+    console.print(table)
+
 def main():
     config_path = get_config_path()
     if not os.path.exists(config_path):
@@ -253,12 +284,15 @@ def main():
                 sys.exit(1)
         elif args.command == "submit":
             try:
-                submit_timecards(
-                    tasks_file,
-                    headless=not args.headed,
-                    date_from=getattr(args, 'from', None),
-                    date_to=getattr(args, 'to', None)
-                )
+                timecards = get_timecards(tasks_file, getattr(args, 'from'), args.to)
+                show_timecards_table(timecards)
+                
+                proceed = console.input("Proceed with submission? (y/N): ").strip().lower()
+                if proceed != "y":
+                    console.print("Submission cancelled.", style="bold yellow")
+                    return
+
+                submit_timecards(timecards, headless=not args.headed, dry_run=args.dry_run)
             except MissingTimecardsUrl as e:
                 console.print(f"[red]{e}[/red]")
                 sys.exit(1)
