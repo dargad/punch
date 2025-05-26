@@ -278,9 +278,13 @@ def main():
         elif args.command == "add":
             quick_task = sys.argv[2:]
             task_str =  " ".join([escape_separators(s) for s in quick_task])
-            task = parse_new_task_string(task_str, categories)
-            write_task(tasks_file, task.category, task.task, task.notes)
-            print(f"Logged: {task.category} : {task.task} : {task.notes}")
+            try:
+                task = parse_new_task_string(task_str, categories)
+                write_task(tasks_file, task.category, task.task, task.notes)
+                print(f"Logged: {task.category} : {task.task} : {task.notes}")
+            except ValueError as e:
+                console.print(f"Error: {e}")
+                sys.exit(1)
         elif args.command == "report":
             # Implement report logic
             console.print(f"From: {getattr(args, 'from')} To: {getattr(args, 'to')}", style="bold blue")
