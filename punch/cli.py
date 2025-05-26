@@ -86,7 +86,7 @@ def escape_separators(s):
 def prepare_parser():    
     parser = ArgumentParser(description="punch - a CLI tool for managing your tasks")
     parser.add_argument(
-        "-v", "--version", action="version", version="%(prog)s 1.0",
+        "-v", "--version", action="version", version="%(prog)s 0.1.3",
         help="Show the version of the program"
     )
 
@@ -124,6 +124,8 @@ def prepare_parser():
         nargs="+",
         help="Category, colon, task, and optional notes (e.g. c : Task name : Notes)"
     )
+
+    parser_help = subparsers.add_parser("help", help="Show this help message")
 
     parser_login = subparsers.add_parser("login", help="Login to your timecards account")
 
@@ -225,6 +227,8 @@ def main():
         
         if args.command == "start":
             write_task(tasks_file, "", "start", "")
+        elif args.command == "help":
+            parser.print_help()
         elif args.command == "add":
             quick_task = sys.argv[2:]
             task_str =  " ".join([escape_separators(s) for s in quick_task])
