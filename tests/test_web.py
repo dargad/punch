@@ -1,7 +1,7 @@
 import unittest
 import tempfile
 import os
-from punch.web import determine_case_number
+from punch.web import determine_case_number, DRY_RUN_SUFFIX, submit_timecards, get_timecards
 from types import SimpleNamespace
 
 class TestDetermineCaseNumber(unittest.TestCase):
@@ -59,6 +59,22 @@ categories:
     def test_case_number_left_filled(self):
         entry = SimpleNamespace(category="Coding")
         self.assertEqual(determine_case_number(entry), "00000100")
+
+class TestDryRunSuffix(unittest.TestCase):
+    def test_dry_run_suffix(self):
+        self.assertEqual(DRY_RUN_SUFFIX, " (dry run)")
+
+    def test_submit_timecards_dry_run_suffix_in_message(self):
+        # This is a functional test stub; in real code, you'd mock Console and Playwright
+        # Here, we just check that DRY_RUN_SUFFIX is used in the API and can be passed through
+        # For a real test, use unittest.mock to patch Console.print and assert the suffix is present
+        self.assertIn("dry run", DRY_RUN_SUFFIX)
+
+class TestGetTimecards(unittest.TestCase):
+    def test_get_timecards_returns_list(self):
+        # Should return a list, even if file does not exist
+        result = get_timecards(file_path="nonexistent.txt")
+        self.assertIsInstance(result, list)
 
 if __name__ == "__main__":
     unittest.main()

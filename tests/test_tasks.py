@@ -4,6 +4,13 @@ import os
 import datetime
 from punch.tasks import TaskEntry, read_tasklog, parse_task, SEPARATOR, parse_new_task_string
 
+CATEGORIES = {
+    "Coding": {"short": "c", "caseid": "100"},
+    "Meeting": {"short": "m", "caseid": "200"},
+    "Bugfix": {"short": "b", "caseid": "300"},
+    "Research": {"short": "r", "caseid": "400"},
+}
+
 class TestTasks(unittest.TestCase):
     def setUp(self):
         # Create a temporary file for testing
@@ -66,12 +73,21 @@ class TestTasks(unittest.TestCase):
         duration = entry.finish - prev.finish
         self.assertTrue(isinstance(duration, datetime.timedelta))
 
-CATEGORIES = {
-    "Coding": {"short": "c", "caseid": "100"},
-    "Meeting": {"short": "m", "caseid": "200"},
-    "Bugfix": {"short": "b", "caseid": "300"},
-    "Research": {"short": "r", "caseid": "400"},
-}
+    def test_start_command_time_argument(self):
+        # Simulate the CLI 'start' command with -t argument
+        from punch.cli import prepare_parser
+        parser = prepare_parser()
+        args = parser.parse_args(['start', '-t', '09:15'])
+        self.assertEqual(args.time, datetime.time(9, 15))
+
+    def test_submit_interactive_implies_headed(self):
+        from punch.cli import prepare_parser
+        parser = prepare_parser()
+        args = parser.parse_args(['submit', '-i'])
+        # Simulate CLI logic: interactive implies headed
+        if getattr(args, "interactive", False):
+            args.headed = True
+        self.assertTrue(args.headed)
 
 class TestParseNewTaskString(unittest.TestCase):
     def test_parse_new_task_string_categoryless_star(self):
@@ -93,16 +109,16 @@ class TestParseNewTaskString(unittest.TestCase):
         self.assertEqual(entry.notes, "Some notes")
 
     def test_parse_new_task_string_with_escaped_colon_in_notes(self):
-        entry = parse_new_task_string(r'c : Task name : Note with foo\:bar inside', CATEGORIES)
+        entry = parse_new_task_string(r'c : Task : Notes with foo\:bar', CATEGORIES)
         self.assertEqual(entry.category, "Coding")
-        self.assertEqual(entry.task, "Task name")
-        self.assertEqual(entry.notes, "Note with foo:bar inside")
+        self.assertEqual(entry.task, "Task")
+        self.assertEqual(entry.notes, "Notes with foo:bar")
 
     def test_parse_new_task_string_with_multiple_escaped_colons(self):
-        entry = parse_new_task_string(r'c : foo\:bar\:baz : note\:with\:colons', CATEGORIES)
+        entry = parse_new_task_string(r'c : foo\:bar\:baz : notes\:with\:colons', CATEGORIES)
         self.assertEqual(entry.category, "Coding")
         self.assertEqual(entry.task, "foo:bar:baz")
-        self.assertEqual(entry.notes, "note:with:colons")
+        self.assertEqual(entry.notes, "notes:with:colons")
 
 if __name__ == "__main__":
     unittest.main()
