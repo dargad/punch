@@ -87,58 +87,32 @@ python punch.py
 
 Guided input for category, task name, and notes.
 
----
-
 ### Subcommands
 
-```sh
-python punch.py <subcommand> [options]
-```
+- `start [-t HH:MM]`  
+  Mark the start of your workday.  
+  The `-t/--time` argument now accepts only a time (not a full datetime), e.g. `-t 09:00`.
 
-#### `start`
-Mark the beginning of the workday.
+- `add <category> : <task> [: <notes>]`  
+  Add a new task with optional notes.
 
-```sh
-python punch.py start
-```
+- `report [-f YYYY-MM-DD] [-t YYYY-MM-DD]`  
+  Print a report of your timecards for a date range.
 
-#### `report`
-Generate a summary report.
+- `export [-f YYYY-MM-DD] [-t YYYY-MM-DD] [--format csv|json] [-o FILE]`  
+  Export your timecards to CSV or JSON.
 
-```sh
-python punch.py report
-```
+- `login`  
+  Login to your timecards account (required before submitting).
 
-With custom dates:
-```sh
-python punch.py report --from 2025-05-01 --to 2025-05-16
-```
+- `submit [-f YYYY-MM-DD] [-t YYYY-MM-DD] [-n|--dry-run] [--headed] [-i|--interactive] [--sleep SECONDS]`  
+  Submit your timecards for a date range.  
+  - `-n/--dry-run`: Perform a dry run (no actual submission; confirmation prompts and messages will indicate dry run mode).
+  - `-i/--interactive`: Run in interactive mode (implies `--headed`).
+  - `--headed`: Run the browser in headed mode.
+  - `--sleep`: Sleep for X seconds after filling out the form.
 
-#### `export`
-Export task data:
-
-```sh
-python punch.py export --format csv --output mytasks.csv
-```
-
-Or:
-```sh
-python punch.py export --format json
-```
-
-#### `login`
-Authenticate with Salesforce Lightning:
-
-```sh
-python punch.py login
-```
-
-#### `submit`
-Submit tasks to Salesforce:
-
-```sh
-python punch.py submit --headed
-```
+  **Note:** If you use `-i/--interactive`, `--headed` will be automatically set to `True`.
 
 ---
 
@@ -189,6 +163,7 @@ python -m unittest tests/test_tasks.py
 - Tasks ending with `**` or with duration `0` are **not submitted**.
 - Salesforce case numbers are padded to 8 digits from config.
 - Always `login` before submitting to ensure session is active.
+- When submitting, you will see a table of timecards and be prompted to confirm submission. If `--dry-run` is used, confirmation and success messages will indicate dry run mode.
 
 ---
 
