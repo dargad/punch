@@ -317,10 +317,10 @@ def main():
                 submit_timecards(
                     timecards,
                     headless=not args.headed,
-                    sleep=args.sleep,
                     interactive=args.interactive,
                     dry_run=args.dry_run,
-                    verbose=args.verbose
+                    verbose=args.verbose,
+                    sleep=args.sleep
                 )
 
             except MissingTimecardsUrl as e:

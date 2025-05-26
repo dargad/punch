@@ -172,7 +172,7 @@ def get_timecards(file_path="tasks.txt", date_from=None, date_to=None):
         return []
     return [_convert_to_timecard(entry) for entry in entries]
 
-def submit_timecards(timecards, headless=True, interactive=False, dry_run=False, verbose=False):
+def submit_timecards(timecards, headless=True, interactive=False, dry_run=False, verbose=False, sleep=0.0):
     """
     Submits timecards for tasks between date_from and date_to (inclusive).
     date_from and date_to should be datetime.date objects or None (defaults to all).
@@ -199,7 +199,7 @@ def submit_timecards(timecards, headless=True, interactive=False, dry_run=False,
             console.print(f"[green]Login successful. Submitting timecards...[/green]{suffix}")
 
         try:
-            _submit_entries_with_progress(console, page, timecards, interactive, dry_run)
+            _submit_entries_with_progress(console, page, timecards, interactive, dry_run, sleep)
         except playwright_error:
             console.print("[red]The browser window was closed before submission could complete.[/red]")
             return
@@ -285,16 +285,16 @@ def _submit_entries_with_progress(console, page, timecards, interactive, dry_run
             "Submitting entries", total=total, desc="Submitting entries".ljust(PROGRESS_WIDTH), count=f"0/{total}"
         )
         for idx, timecard in enumerate(timecards, 1):
-            if not dry_run:
-                _submit_single_entry(page, timecard, interactive)
-            else:
-                time.sleep(0.2)
+
+            _fill_single_entry(page, timecard, interactive)
+
             desc = timecard.desc
             desc = (desc[:PROGRESS_WIDTH-3] + "...") if len(desc) > PROGRESS_WIDTH else desc.ljust(PROGRESS_WIDTH)
             progress.update(task, advance=0, desc=desc, count=f"{idx}/{total}")
-            _fill_single_entry(page, entry)
+
             if sleep > 0:
                 time.sleep(sleep)
+
             if dry_run:
                 # when cancelling, we have to reload the page.
                 # if we are not running headless, we could potentially use
@@ -309,11 +309,12 @@ def _submit_entries_with_progress(console, page, timecards, interactive, dry_run
                 _reload_timecards(console, page)
             else:
                 # We can reuse the page if we are saving this one
-                _save_and_new(page)
+                if not interactive:
+                    _save_and_new(page)
             progress.update(task, advance=1, desc=desc, count=f"{idx}/{total}")
         progress.update(task, completed=total, count=f"{total}/{total}")
 
-def _submit_single_entry(page, timecard_entry, interactive):
+def _fill_single_entry(page, timecard_entry, interactive):
     _fill_owner(page, timecard_entry.owner)
 
     _fill_case_number(page, timecard_entry.case_no)
