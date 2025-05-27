@@ -71,7 +71,7 @@ def login_to_site(verbose=False):
         page.goto(timecards_link)
 
         console.print(f"[cyan]Waiting for login at {timecards_link}...[/cyan]")
-        page.wait_for_url(timecards_link, timeout=30000)
+        page.wait_for_url(timecards_link, timeout=0)
         console.print("[green]Login successful.[/green]")
 
         context.storage_state(path=auth_json_path)
