@@ -9,6 +9,8 @@ description: |
 grade: stable
 confinement: strict
 
+icon: snap/gui/icon.svg
+
 apps:
   punch:
     command: bin/punch
