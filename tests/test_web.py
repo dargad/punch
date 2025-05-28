@@ -32,33 +32,35 @@ categories:
         import punch.web
         punch.web.get_config_path = lambda: self.config_path
 
+        import yaml
+        with open(self.config_path, "r") as f:
+            self.config = yaml.safe_load(f)
+
     def tearDown(self):
         self.config_dir.cleanup()
 
     def test_case_number_found(self):
         entry = SimpleNamespace(category="Meeting")
-        self.assertEqual(determine_case_number(entry), "00000200")
+        self.assertEqual(determine_case_number(self.config, entry), "00000200")
         entry = SimpleNamespace(category="Bugfix")
-        self.assertEqual(determine_case_number(entry), "00000300")
+        self.assertEqual(determine_case_number(self.config, entry), "00000300")
 
     def test_case_number_not_found(self):
         entry = SimpleNamespace(category="Nonexistent")
-        self.assertIsNone(determine_case_number(entry))
+        self.assertIsNone(determine_case_number(self.config, entry))
 
     def test_case_number_missing_caseid(self):
         # Remove caseid from Research
-        import yaml
-        with open(self.config_path, "r") as f:
-            config = yaml.safe_load(f)
-        config["categories"]["Research"].pop("caseid")
+        self.config["categories"]["Research"].pop("caseid")
         with open(self.config_path, "w") as f:
-            yaml.safe_dump(config, f)
+            import yaml
+            yaml.safe_dump(self.config, f)
         entry = SimpleNamespace(category="Research")
-        self.assertIsNone(determine_case_number(entry))
+        self.assertIsNone(determine_case_number(self.config, entry))
 
     def test_case_number_left_filled(self):
         entry = SimpleNamespace(category="Coding")
-        self.assertEqual(determine_case_number(entry), "00000100")
+        self.assertEqual(determine_case_number(self.config, entry), "00000100")
 
 class TestDryRunSuffix(unittest.TestCase):
     def test_dry_run_suffix(self):
@@ -71,9 +73,35 @@ class TestDryRunSuffix(unittest.TestCase):
         self.assertIn("dry run", DRY_RUN_SUFFIX)
 
 class TestGetTimecards(unittest.TestCase):
+    def setUp(self):
+        self.config_content = """
+full_name: Dariusz Gadomski
+
+categories:
+  Coding:
+    short: c
+    caseid: "100"
+  Meeting:
+    short: m
+    caseid: "200"
+  Bugfix:
+    short: b
+    caseid: "300"
+  Research:
+    short: r
+    caseid: "400"
+"""
+        self.config_dir = tempfile.TemporaryDirectory()
+        self.config_path = os.path.join(self.config_dir.name, "punch.yaml")
+        with open(self.config_path, "w") as f:
+            f.write(self.config_content)
+
     def test_get_timecards_returns_list(self):
+        import yaml
+        with open(self.config_path, "r") as f:
+            config = yaml.safe_load(f)
         # Should return a list, even if file does not exist
-        result = get_timecards(file_path="nonexistent.txt")
+        result = get_timecards(config, file_path="nonexistent.txt")
         self.assertIsInstance(result, list)
 
 if __name__ == "__main__":
