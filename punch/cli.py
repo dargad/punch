@@ -9,7 +9,7 @@ from punch.config import load_config, get_config_path, get_tasks_file
 from punch.export import export_csv, export_json
 from punch.tasks import get_recent_tasks, write_task, parse_new_task_string
 from punch.report import generate_report
-from punch.web import DRY_RUN_SUFFIX, get_timecards, login_to_site, submit_timecards, MissingTimecardsUrl
+from punch.web import DRY_RUN_SUFFIX, AuthFileNotFoundError, get_timecards, login_to_site, submit_timecards, MissingTimecardsUrl
 
 
 def select_from_list(console, items, prompt, style="bold yellow"):
@@ -297,7 +297,7 @@ def main():
                 print(export_csv(tasks_file, getattr(args, 'from'), args.to))
         elif args.command == "login":
             try:
-                login_to_site(args.verbose)
+                login_to_site(config, args.verbose)
             except MissingTimecardsUrl as e:
                 console.print(f"[red]{e}[/red]")
                 sys.exit(1)
@@ -306,7 +306,12 @@ def main():
                 if args.interactive:
                     args.headed = True  # --interactive implies --headed
 
-                timecards = get_timecards(tasks_file, getattr(args, 'from'), args.to)
+                timecards = []
+                try:
+                    timecards = get_timecards(config, tasks_file, getattr(args, 'from'), args.to)
+                except AuthFileNotFoundError as e:
+                    console.print("[red]Auth info file not found. Please login first using the 'login' command.[/red]")
+                    return
                 if not timecards or len(timecards) == 0:
                     console.print("No timecards found for submission.", style="bold red")
                     return
@@ -319,6 +324,7 @@ def main():
                     return
 
                 submit_timecards(
+                    config,
                     timecards,
                     headless=not args.headed,
                     interactive=args.interactive,

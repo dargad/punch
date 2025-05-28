@@ -7,7 +7,7 @@ import datetime
 from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn
 from rich.console import Console
 import re
-from punch.config import get_config_path, load_config
+from punch.config import get_config_path
 import sys
 
 DRY_RUN_SUFFIX = " (dry run)"
@@ -25,12 +25,13 @@ class TimecardEntry:
 class MissingTimecardsUrl(Exception):
     pass
 
-def get_timecards_link():
+class AuthFileNotFoundError(Exception):
+    pass
+
+def get_timecards_link(config):
     """
     Fetch the timecards link from config, or raise if not set.
     """
-    config_path = get_config_path()
-    config = load_config(config_path)
     url = config.get("timecards_url")
     if not url:
         raise MissingTimecardsUrl("No timecards_url found in config. Please set it in your config file.")
@@ -51,10 +52,10 @@ def log_redirects(request):
             f"[yellow]Redirected from[/yellow] [cyan]{request.redirected_from.url}[/cyan] [yellow]to[/yellow] [cyan]{request.url}[/cyan]"
         )
 
-def login_to_site(verbose=False):
+def login_to_site(config, verbose=False):
     console = Console()
     auth_json_path = get_auth_json_path()
-    timecards_link = get_timecards_link()
+    timecards_link = get_timecards_link(config)
     with sync_playwright() as p:
         browser = p.firefox.launch(headless=False)
         if os.path.exists(auth_json_path):
@@ -94,15 +95,13 @@ def select_from_combo(page, value, placeholder, xpath):
 
     time.sleep(1)
 
-def determine_case_number(entry):
+def determine_case_number(config, entry):
     """
     Returns the case number for the entry's category using the config file.
     Looks up entry.category in config['categories'][<category>]['caseid'].
     Left-fills the result with zeroes to 8 characters.
     Returns None if not found.
     """
-    config_path = get_config_path()
-    config = load_config(config_path)
     categories = config.get("categories", {})
     if not isinstance(categories, dict):
         return None
@@ -131,13 +130,11 @@ def extract_case_number(task):
         return match.group(1).zfill(8)
     return None
 
-def _convert_to_timecard(entry):
-    case_no = determine_case_number(entry)
+def _convert_to_timecard(config, entry):
+    case_no = determine_case_number(config, entry)
 
-    # Fetch full name from config
-    config_path = get_config_path()
-    config = load_config(config_path)
     full_name = config.get("full_name")
+
     if not full_name:
         raise Exception("Full name not set in config file. Please add 'full_name' to your config.")
 
@@ -162,32 +159,33 @@ def _convert_to_timecard(entry):
         entry.task
     )
 
-def get_timecards(file_path="tasks.txt", date_from=None, date_to=None):
+def get_timecards(config, file_path="tasks.txt", date_from=None, date_to=None):
     """
     Returns a list of TimecardEntry objects for tasks between date_from and date_to (inclusive).
     date_from and date_to should be datetime.date objects or None (defaults to all).
     """
-    entries = _get_valid_entries(Console(), file_path, None, date_from, date_to)
+    entries = _get_valid_entries(file_path, date_from, date_to)
     if not entries:
         return []
-    return [_convert_to_timecard(entry) for entry in entries]
+    return [_convert_to_timecard(config, entry) for entry in entries]
 
-def submit_timecards(timecards, headless=True, interactive=False, dry_run=False, verbose=False, sleep=0.0):
+def submit_timecards(config, timecards, headless=True, interactive=False, dry_run=False, verbose=False, sleep=0.0):
     """
     Submits timecards for tasks between date_from and date_to (inclusive).
     date_from and date_to should be datetime.date objects or None (defaults to all).
     """
 
+    console = Console()
+    
     if not timecards or len(timecards) == 0:
         console.print("[yellow]No timecards to submit.[/yellow]")
         return
 
-    console = Console()
     auth_json_path = get_auth_json_path()
     suffix = DRY_RUN_SUFFIX if dry_run else ""
     with sync_playwright() as p:
         browser = p.firefox.launch(headless=headless)
-        context = _get_browser_context(console, browser, auth_json_path)
+        context = _get_browser_context(browser, auth_json_path)
         if context is None:
             return
 
@@ -195,7 +193,7 @@ def submit_timecards(timecards, headless=True, interactive=False, dry_run=False,
         if verbose:
             page.on("request", log_redirects)
         
-        if _login_to_timecards(console, page):
+        if _login_to_timecards(console, page, config):
             console.print(f"[green]Login successful. Submitting timecards...[/green]{suffix}")
 
         try:
@@ -213,22 +211,19 @@ def submit_timecards(timecards, headless=True, interactive=False, dry_run=False,
             console.print("[yellow]Close the browser window when done.[/yellow]")
             page.wait_for_event("close", timeout=0)
 
-def _get_browser_context(console, browser, auth_json_path):
+def _get_browser_context(browser, auth_json_path):
     try:
         context = browser.new_context(storage_state=auth_json_path)
         return context
     except FileNotFoundError:
-        console.print("[red]Task file not found or no authentication. Please login first using the 'login' command.[/red]")
         browser.close()
-        return None
+        raise AuthFileNotFoundError("Auth file not found. Please login first using the 'login' command.")
 
-def _get_valid_entries(console, file_path, browser, date_from=None, date_to=None):
+def _get_valid_entries(file_path, date_from=None, date_to=None):
     try:
         entries = read_tasklog(file_path)
     except FileNotFoundError:
-        console.print("[red]Auth info file not found. Please login first using the 'login' command.[/red]")
-        browser.close()
-        return None
+        raise AuthFileNotFoundError("Task file not found. Please login first using the 'login' command.")
 
     # Filter by date range if provided
     if date_from or date_to:
@@ -252,16 +247,16 @@ def _get_valid_entries(console, file_path, browser, date_from=None, date_to=None
     ]
     return entries
 
-def _login_to_timecards(console, page):
-    timecards_link = get_timecards_link()
+def _login_to_timecards(console, page, config):
+    timecards_link = get_timecards_link(config)
     page.goto(timecards_link)
     console.print(f"[cyan]Waiting for login at {timecards_link}...[/cyan]")
     page.wait_for_url(timecards_link, timeout=30000)
     return True
 
 
-def _reload_timecards(console, page):
-    timecards_link = get_timecards_link()
+def _reload_timecards(console, page, config):
+    timecards_link = get_timecards_link(config)
     page.goto(timecards_link)
     page.wait_for_url(timecards_link, timeout=30000)
 
