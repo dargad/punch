@@ -285,7 +285,7 @@ def _submit_entries_with_progress(console, page, config, timecards, interactive,
 
             _fill_single_entry(page, timecard, interactive)
 
-            desc = timecard.desc
+            desc = f"{timecard.desc} - {timecard.work_performed}"
             desc = (desc[:PROGRESS_WIDTH-3] + "...") if len(desc) > PROGRESS_WIDTH else desc.ljust(PROGRESS_WIDTH)
             progress.update(task, advance=0, desc=desc, count=f"{idx}/{total}")
 
