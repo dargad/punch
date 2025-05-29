@@ -141,10 +141,12 @@ def _convert_to_timecard(config, entry):
     if not case_no:
         # if no case number mapping found try to extract it from the task
         case_no = extract_case_number(entry.task)
-        desc = entry.notes if hasattr(entry, "notes") else entry.task
+        work_performed = entry.notes if hasattr(entry, "notes") else entry.task
+        task_name_visual = entry.task
     else:
-        # if mapping has been found use taskname as notes
-        desc = entry.task
+        # if mapping has been found use category as description
+        task_name_visual = entry.category if hasattr(entry, "category") else entry.task
+        work_performed = entry.task
 
     duration = int(entry.duration.total_seconds() // 60)
     start_time = entry.finish - datetime.timedelta(minutes=duration)
@@ -155,8 +157,8 @@ def _convert_to_timecard(config, entry):
         duration, 
         start_time.date(), 
         start_time.time(), 
-        desc, 
-        entry.task
+        work_performed, 
+        task_name_visual
     )
 
 def get_timecards(config, file_path="tasks.txt", date_from=None, date_to=None):
