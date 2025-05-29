@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "punch"
-version = "0.2.0"
+version = "0.2.1"
 description = "A CLI tool for tracking, reporting, and submitting your work tasks and timecards."
 authors = ["Dariusz Gadomski <dgadomski@ubuntu.com>"]
 license = "MIT"
