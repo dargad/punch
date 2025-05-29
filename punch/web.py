@@ -199,7 +199,7 @@ def submit_timecards(config, timecards, headless=True, interactive=False, dry_ru
             console.print(f"[green]Login successful. Submitting timecards...[/green]{suffix}")
 
         try:
-            _submit_entries_with_progress(console, page, timecards, interactive, dry_run, sleep)
+            _submit_entries_with_progress(console, page, config, timecards, interactive, dry_run, sleep)
         except playwright_error:
             console.print("[red]The browser window was closed before submission could complete.[/red]")
             return
@@ -263,7 +263,7 @@ def _reload_timecards(console, page, config):
     page.wait_for_url(timecards_link, timeout=30000)
 
 
-def _submit_entries_with_progress(console, page, timecards, interactive, dry_run=True, sleep=0.0):
+def _submit_entries_with_progress(console, page, config, timecards, interactive, dry_run=True, sleep=0.0):
     from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn
 
     PROGRESS_WIDTH = 30  # Constant for progress description width
@@ -303,7 +303,7 @@ def _submit_entries_with_progress(console, page, timecards, interactive, dry_run
                 # time.sleep(5)
                 # We don't have to actually cancel, we reload and keep going
                 # _cancel_edit(page)
-                _reload_timecards(console, page)
+                _reload_timecards(console, page, config)
             else:
                 # We can reuse the page if we are saving this one
                 if not interactive:
