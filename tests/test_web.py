@@ -96,6 +96,10 @@ categories:
         with open(self.config_path, "w") as f:
             f.write(self.config_content)
 
+    def tearDown(self):
+        self.config_dir.cleanup()
+        self.config_dir = None
+
     def test_get_timecards_returns_list(self):
         import yaml
         with open(self.config_path, "r") as f:
