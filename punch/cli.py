@@ -291,10 +291,18 @@ def main():
             report = generate_report(tasks_file, getattr(args, 'from'), args.to)
             print_report(report)
         elif args.command == "export":
+            exported_content = None
             if args.format == "json":
-                print(export_json(tasks_file, getattr(args, 'from'), args.to))
+                exported_content = export_json(tasks_file, getattr(args, 'from'), args.to)
             elif args.format == "csv":
-                print(export_csv(tasks_file, getattr(args, 'from'), args.to))
+                exported_content = export_csv(tasks_file, getattr(args, 'from'), args.to)
+
+            if args.output:
+                with open(args.output, "w") as f:
+                    f.write(exported_content)
+                console.print(f"Exported to {args.output}", style="bold green")
+            else:
+                console.print(exported_content)
         elif args.command == "login":
             try:
                 login_to_site(config, args.verbose)
