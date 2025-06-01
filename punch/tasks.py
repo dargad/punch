@@ -56,7 +56,7 @@ def read_tasklog(taskfile, count_lines=False):
         return tasklog, line_count
     return tasklog
 
-def parse_task(line, line_no):
+def parse_task(line, line_no=-1):
     parts = line.strip().split(SEPARATOR)
     parts = [s.strip() for s in parts]
     # Handle different possible formats
