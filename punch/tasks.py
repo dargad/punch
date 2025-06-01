@@ -19,15 +19,22 @@ def read_tasklog(taskfile, count_lines=False):
     The first task of each day will have a duration of 0, subsequent tasks will have duration relative to the previous task of that day.
     Removes tasks ending with '**' and with duration == 0.
     If count_lines is True, also returns the total number of lines read (before filtering).
+    Checks that all entries are in chronological order by 'finish'.
     """
     tasklog = []
     prev_entry_by_day = {}
     line_count = 0
+    prev_finish = None
     try:
         with open(taskfile, 'r') as f:
             for line in f:
                 line_count += 1
                 entry = parse_task(line, line_count)
+                if prev_finish and entry.finish < prev_finish:
+                    raise ValueError(
+                        f"Task log not in chronological order: line {line_count}: ({entry.finish} < {prev_finish})"
+                    )
+                prev_finish = entry.finish
                 day = entry.finish.date()
                 if day in prev_entry_by_day:
                     prev_entry = prev_entry_by_day[day]
