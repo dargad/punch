@@ -288,8 +288,11 @@ def main():
         elif args.command == "report":
             # Implement report logic
             console.print(f"From: {getattr(args, 'from')} To: {getattr(args, 'to')}", style="bold blue")
-            report = generate_report(tasks_file, getattr(args, 'from'), args.to)
-            print_report(report)
+            try:
+                report = generate_report(tasks_file, getattr(args, 'from'), args.to)
+                print_report(report)
+            except ValueError as e:
+                console.print(f"Error generating report: {e}", style="bold red")    
         elif args.command == "export":
             exported_content = None
             if args.format == "json":

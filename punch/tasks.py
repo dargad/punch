@@ -13,18 +13,21 @@ class TaskEntry:
 
 SEPARATOR = '|'
 
-def read_tasklog(taskfile):
+def read_tasklog(taskfile, count_lines=False):
     """
     Reads the task log from a file and returns a list of TaskEntry objects.
     The first task of each day will have a duration of 0, subsequent tasks will have duration relative to the previous task of that day.
     Removes tasks ending with '**' and with duration == 0.
+    If count_lines is True, also returns the total number of lines read (before filtering).
     """
     tasklog = []
     prev_entry_by_day = {}
+    line_count = 0
     try:
         with open(taskfile, 'r') as f:
             for line in f:
-                entry = parse_task(line)
+                line_count += 1
+                entry = parse_task(line, line_count)
                 day = entry.finish.date()
                 if day in prev_entry_by_day:
                     prev_entry = prev_entry_by_day[day]
@@ -42,9 +45,11 @@ def read_tasklog(taskfile):
         entry for entry in tasklog
         if entry.duration.total_seconds() > 0 and not entry.task.endswith("**")
     ]
+    if count_lines:
+        return tasklog, line_count
     return tasklog
 
-def parse_task(line):
+def parse_task(line, line_no):
     parts = line.strip().split(SEPARATOR)
     parts = [s.strip() for s in parts]
     # Handle different possible formats
@@ -58,7 +63,7 @@ def parse_task(line):
     elif len(parts) >= 4:
         finish_str, category, task, notes = parts[:4]
     else:
-        raise ValueError("Invalid task entry format")
+        raise ValueError(f"Invalid task entry format: line {line_no}: {line.strip()}")
     finish = datetime.datetime.strptime(finish_str.strip(), '%Y-%m-%d %H:%M')
     return TaskEntry(finish, category, task, notes, duration=datetime.timedelta(0))
 
