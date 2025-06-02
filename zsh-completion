@@ -21,7 +21,7 @@ typeset -a tasks_lines
 typeset -A cat_short_codes  # map of category short code -> 1 (used as set of known codes)
 
 if [[ -r $tasks_file ]]; then
-  tasks_lines=("${(f)$(<${tasks_file})}")    # read all lines from tasks.txt
+  tasks_lines=("${(f)$(<${tasks_file})}") # read all lines from tasks.txt
   for line in $tasks_lines; do
     # Each task line expected as "shortcode:Task Name"
     if [[ $line =~ ^([A-Za-z0-9]+):(.*) ]]; then
@@ -122,7 +122,8 @@ case $state in
               task_suggestions+="$task"
             fi
           done
-          compadd -Q -U -S '' -- $task_suggestions
+          # offer suggestions in reverse order (most recent first)
+          compadd -Q -U -S '' -V task_suggestions -- $task_suggestions
         elif (( CURRENT == 4 )); then
           _message "Enter optional notes for the task"
         fi
