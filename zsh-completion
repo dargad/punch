@@ -84,22 +84,18 @@ case $state in
         ;;
       add)
         # Build short-to-full mapping from config file
-        # print -ru2 -- "DEBUG config_file: $config_file" >> /tmp/punch-zsh-debug.log
         typeset -A short_to_full
         if [[ -r $config_file ]]; then
           local cur_cat=""
           while IFS= read -r cfgline; do
             # Detect category name (YAML key)
             if [[ $cfgline == *short:* ]]; then
-              # print -ru2 -- "DEBUG cfgline2: $cfgline" >> /tmp/punch-zsh-debug.log
               local code="${cfgline##*short:}"
               code="${code//[[:space:]]/}"
               if [[ -n $code && -n $cur_cat ]]; then
-                # print -ru2 -- "DEBUG short code: $code, category: $cur_cat" >> /tmp/punch-zsh-debug.log
                 short_to_full[$code]="$cur_cat"
               fi
             elif [[ $cfgline =~ ^[[:space:]][[:space:]]([^:]+): ]]; then
-              # print -ru2 -- "DEBUG cfgline1: $cfgline" >> /tmp/punch-zsh-debug.log
               cur_cat="${match[1]}"
             fi
           done < "$config_file"
@@ -109,19 +105,12 @@ case $state in
           # Complete category short codes (with colon)
           local -a shorts
           shorts=(${(k)short_to_full})
-          # print -ru2 -- "DEBUG shorts=(${shorts[@]})" >> /tmp/punch-zsh-debug.log
-          # print -ru2 -- "DEBUG short_to_full:" >> /tmp/punch-zsh-debug.log
-          # for s in "${(@k)short_to_full}"; do
-            # print -ru2 -- "  $s -> ${short_to_full[$s]}" >> /tmp/punch-zsh-debug.log
-          # done
           compadd -Q -S ':' -- $shorts
         elif (( CURRENT == 3 )); then
-          # print -ru2 -- "DEBUG CURRENT=3" >> /tmp/punch-zsh-debug.log
           # Complete tasks for the selected category
           local prev=${words[2]}
           local catcode="${prev%:}"
           local fullcat="${short_to_full[$catcode]}"
-          # print -ru2 -- "DEBUG catcode: $catcode, fullcat: $fullcat" >> /tmp/punch-zsh-debug.log
           local -a task_suggestions=()
           for line in "${tasks_lines[@]}"; do
             IFS='|' read -r ts category task rest <<< "$line"
@@ -129,7 +118,6 @@ case $state in
             category="${category%"${category##*[![:space:]]}"}"
             task="${task#"${task%%[![:space:]]*}"}"
             task="${task%"${task##*[![:space:]]}"}"
-            # print -ru2 -- "DEBUG category: $category, task: $task" >> /tmp/punch-zsh-debug.log
             if [[ "$category" == "$fullcat" && -n "$task" ]]; then
               task_suggestions+="$task"
             fi
