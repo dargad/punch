@@ -2,8 +2,9 @@
 
 _punch_complete()
 {
-    local cur prev words cword
-    _init_completion || return
+    local cur prev
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
 
     # Prefer Snap paths if they exist
     local snap_dir="$HOME/snap/punch/current"
@@ -23,12 +24,11 @@ _punch_complete()
     fi
 
     # Extract short categories and mapping to full names
-    local shorts
+    local shorts=""
     local -A short_to_full
     local catname
     if [[ -f "$config_file" ]]; then
         while IFS= read -r line; do
-            # Match YAML category name (indented two spaces, ends with colon)
             if [[ "$line" =~ ^[[:space:]]{2}([A-Za-z0-9\ \-_]+):[[:space:]]*$ ]]; then
                 catname="${BASH_REMATCH[1]}"
             elif [[ "$line" =~ short:[[:space:]]*([A-Za-z0-9_]+) ]]; then
@@ -50,8 +50,39 @@ _punch_complete()
         return 0
     fi
 
-    # Option completion for subcommands
     case "${COMP_WORDS[1]}" in
+        add)
+            # punch add <category> :
+            if [[ ${COMP_CWORD} -eq 2 ]]; then
+                # Complete category shorts
+                COMPREPLY=( $(compgen -W "$shorts" -- "$cur") )
+                return 0
+            elif [[ ${COMP_CWORD} -eq 3 && "$prev" != ":" ]]; then
+                # After category, complete ":"
+                [[ ":" == "$cur" ]] && COMPREPLY=( ":" ) || COMPREPLY=( $(compgen -W ":" -- "$cur") )
+                return 0
+            elif [[ ${COMP_CWORD} -eq 4 && "${COMP_WORDS[3]}" == ":" ]]; then
+                # Complete tasks for the selected category
+                local short="${COMP_WORDS[2]}"
+                local fullcat="${short_to_full[$short]}"
+                if [[ -f "$tasks_file" && -n "$fullcat" ]]; then
+                    mapfile -t tasks < <(
+                        awk -F'|' -v cat="$fullcat" '
+                            { gsub(/^[ \t]+|[ \t]+$/, "", $2);
+                              gsub(/^[ \t]+|[ \t]+$/, "", $3); }
+                            $2 == cat && $3 != "" { print $3 }
+                        ' "$tasks_file" | sort -u
+                    )
+                    if ((${#tasks[@]})); then
+                        local IFS=$'\n'
+                        COMPREPLY=( $(compgen -W "$(printf '%s\n' "${tasks[@]}")" -- "$cur") )
+                    else
+                        COMPREPLY=()
+                    fi
+                    return 0
+                fi
+            fi
+            ;;
         report)
             COMPREPLY=( $(compgen -W "$opts_report" -- "$cur") )
             return 0
@@ -64,47 +95,11 @@ _punch_complete()
             COMPREPLY=( $(compgen -W "$opts_submit" -- "$cur") )
             return 0
             ;;
-        add)
-            COMP_WORDBREAKS=${COMP_WORDBREAKS//:/}
-
-            if [[ ${COMP_CWORD} -eq 2 ]]; then
-                # Complete category shorts with colon
-                COMPREPLY=( $(compgen -S: -W "$shorts" -- "$cur") )
-                return 0
-
-            elif [[ ${COMP_CWORD} -eq 3 && "${COMP_WORDS[2]}" == *: ]]; then
-                # Complete tasks for the selected category
-                local short="${COMP_WORDS[2]%:}"
-                local fullcat="${short_to_full[$short]}"
-                if [[ -f "$tasks_file" && -n "$fullcat" ]]; then
-                    local tasks
-                    # Read tasks (field 3) for this category (field 2) from tasks_file
-                    mapfile -t tasks < <(
-                        awk -F'|' -v cat="$fullcat" '
-                            { gsub(/^[ \t]+|[ \t]+$/, "", $2); 
-                              gsub(/^[ \t]+|[ \t]+$/, "", $3); }
-                            $2 == cat && $3 != "" { print $3 }
-                        ' "$tasks_file" | sort -u
-                    )
-                    # If we found any tasks, build the reply list
-                    if ((${#tasks[@]})); then
-                        if [[ -z "$cur" ]]; then
-                            COMPREPLY=( "${tasks[@]}" )
-                        else
-                            # Ensure we split only on newline, then compgen on $cur
-                            local IFS=$'\n'
-                            COMPREPLY=( $(compgen -W "$(printf '%s\n' "${tasks[@]}")" -- "$cur") )
-                        fi
-                    else
-                        COMPREPLY=()
-                    fi
-                    return 0
-                fi
-            fi
-            ;;
     esac
 
     # Fallback: complete nothing
     COMPREPLY=()
 }
+
+# Do NOT remove ":" from COMP_WORDBREAKS!
 complete -F _punch_complete punch.py punch
