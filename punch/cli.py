@@ -156,8 +156,16 @@ def prepare_parser():
 
     parser_config = subparsers.add_parser("config", help="Show the current configuration")
     config_subparsers = parser_config.add_subparsers(dest="config_command", help="Config subcommands")
+    config_subparsers.add_parser("path", help="Show the path of current configuration file")
     config_subparsers.add_parser("show", help="Show the current configuration")
     config_subparsers.add_parser("edit", help="Edit the configuration file")
+
+    parser_set = config_subparsers.add_parser("set", help="Set config file option")
+    parser_set.add_argument("option", help="Option name to set")
+    parser_set.add_argument("value", help="Value to set for the option")
+
+    parser_get = config_subparsers.add_parser("get", help="Get value of a config file option")
+    parser_get.add_argument("option", help="Option name to get")
 
     return parser
 
@@ -366,10 +374,13 @@ def main():
                 console.print(f"[red]{e}[/red]")
                 sys.exit(1)
         elif args.command == "config":
-            if args.config_command == "show":
+            if args.config_command == "path":
+                console.print(f"{config_path}", style="bold blue")
+                return
+            elif args.config_command == "show":
                 show_config(config);
             elif args.config_command == "edit":
                 # Open the config file in the default editor
-                os.system(f"{os.getenv('EDITOR', 'nano')} {config_path}")
+                os.system(f"{os.getenv('EDITOR', 'vi')} {config_path}")
             else:
                 show_config(config)
