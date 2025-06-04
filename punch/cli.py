@@ -4,6 +4,7 @@ import sys
 from argparse import ArgumentParser
 from rich.console import Console
 from rich.tree import Tree
+import yaml
 
 from punch.config import load_config, get_config_path, get_tasks_file
 from punch.export import export_csv, export_json
@@ -153,6 +154,11 @@ def prepare_parser():
         "--sleep", type=float, default=0, help="Sleep for X seconds after filling out the form"
     )
 
+    parser_config = subparsers.add_parser("config", help="Show the current configuration")
+    config_subparsers = parser_config.add_subparsers(dest="config_command", help="Config subcommands")
+    config_subparsers.add_parser("show", help="Show the current configuration")
+    config_subparsers.add_parser("edit", help="Edit the configuration file")
+
     return parser
 
 def print_report(report):
@@ -245,6 +251,18 @@ def show_timecards_table(timecards):
         )
 
     console.print(table)
+
+def show_config(config):
+    """
+    Pretty-print the loaded config as YAML.
+    """
+    from rich.console import Console
+    from rich.syntax import Syntax
+
+    console = Console()
+    yaml_str = yaml.dump(config, sort_keys=False, allow_unicode=True)
+    syntax = Syntax(yaml_str, "yaml", theme="ansi_dark", line_numbers=False)
+    console.print(syntax)
 
 def main():
     config_path = get_config_path()
@@ -347,3 +365,11 @@ def main():
             except MissingTimecardsUrl as e:
                 console.print(f"[red]{e}[/red]")
                 sys.exit(1)
+        elif args.command == "config":
+            if args.config_command == "show":
+                show_config(config);
+            elif args.config_command == "edit":
+                # Open the config file in the default editor
+                os.system(f"{os.getenv('EDITOR', 'nano')} {config_path}")
+            else:
+                show_config(config)
