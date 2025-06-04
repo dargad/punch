@@ -57,12 +57,39 @@ _punch_complete()
                 # Complete category shorts
                 COMPREPLY=( $(compgen -W "$shorts" -- "$cur") )
                 return 0
-            elif [[ ${COMP_CWORD} -eq 3 && "$prev" != ":" ]]; then
-                # After category, complete ":"
-                [[ ":" == "$cur" ]] && COMPREPLY=( ":" ) || COMPREPLY=( $(compgen -W ":" -- "$cur") )
-                return 0
+            elif [[ ${COMP_CWORD} -eq 3 ]]; then
+                # Handle both: punch add c :   and punch add c: ...
+                if [[ "$prev" == *: ]]; then
+                    # Previous argument ends with ":", so complete tasks
+                    local short="${prev%:}"
+                    local fullcat="${short_to_full[$short]}"
+                    if [[ -f "$tasks_file" && -n "$fullcat" ]]; then
+                        mapfile -t tasks < <(
+                            awk -F'|' -v cat="$fullcat" '
+                                { gsub(/^[ \t]+|[ \t]+$/, "", $2);
+                                  gsub(/^[ \t]+|[ \t]+$/, "", $3); }
+                                $2 == cat && $3 != "" { print $3 }
+                            ' "$tasks_file" | sort -u
+                        )
+                        if ((${#tasks[@]})); then
+                            local IFS=$'\n'
+                            COMPREPLY=( $(compgen -W "$(printf '%s\n' "${tasks[@]}")" -- "$cur") )
+                        else
+                            COMPREPLY=()
+                        fi
+                        return 0
+                    fi
+                elif [[ "$cur" == ":" ]]; then
+                    # After category, complete ":"
+                    COMPREPLY=( ":" )
+                    return 0
+                else
+                    # After category, suggest ":"
+                    COMPREPLY=( $(compgen -W ":" -- "$cur") )
+                    return 0
+                fi
             elif [[ ${COMP_CWORD} -eq 4 && "${COMP_WORDS[3]}" == ":" ]]; then
-                # Complete tasks for the selected category
+                # punch add c : <task>
                 local short="${COMP_WORDS[2]}"
                 local fullcat="${short_to_full[$short]}"
                 if [[ -f "$tasks_file" && -n "$fullcat" ]]; then
