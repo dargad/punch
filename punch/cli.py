@@ -4,8 +4,9 @@ import sys
 from argparse import ArgumentParser
 from rich.console import Console
 from rich.tree import Tree
+import yaml
 
-from punch.config import load_config, get_config_path, get_tasks_file
+from punch.config import load_config, get_config_path, get_tasks_file, set_config_value
 from punch.export import export_csv, export_json
 from punch.tasks import get_recent_tasks, write_task, parse_new_task_string
 from punch.report import generate_report
@@ -153,6 +154,19 @@ def prepare_parser():
         "--sleep", type=float, default=0, help="Sleep for X seconds after filling out the form"
     )
 
+    parser_config = subparsers.add_parser("config", help="Show the current configuration")
+    config_subparsers = parser_config.add_subparsers(dest="config_command", help="Config subcommands")
+    config_subparsers.add_parser("path", help="Show the path of current configuration file")
+    config_subparsers.add_parser("show", help="Show the current configuration")
+    config_subparsers.add_parser("edit", help="Edit the configuration file")
+
+    parser_set = config_subparsers.add_parser("set", help="Set config file option")
+    parser_set.add_argument("option", help="Option name to set")
+    parser_set.add_argument("value", help="Value to set for the option")
+
+    parser_get = config_subparsers.add_parser("get", help="Get value of a config file option")
+    parser_get.add_argument("option", help="Option name to get")
+
     return parser
 
 def print_report(report):
@@ -245,6 +259,18 @@ def show_timecards_table(timecards):
         )
 
     console.print(table)
+
+def show_config(config):
+    """
+    Pretty-print the loaded config as YAML.
+    """
+    from rich.console import Console
+    from rich.syntax import Syntax
+
+    console = Console()
+    yaml_str = yaml.dump(config, sort_keys=False, allow_unicode=True)
+    syntax = Syntax(yaml_str, "yaml", theme="ansi_dark", line_numbers=False)
+    console.print(syntax)
 
 def main():
     config_path = get_config_path()
@@ -347,3 +373,28 @@ def main():
             except MissingTimecardsUrl as e:
                 console.print(f"[red]{e}[/red]")
                 sys.exit(1)
+        elif args.command == "config":
+            if args.config_command == "path":
+                console.print(f"{config_path}", style="bold blue")
+                return
+            elif args.config_command == "show":
+                show_config(config);
+            elif args.config_command == "edit":
+                # Open the config file in the default editor
+                os.system(f"{os.getenv('EDITOR', 'vi')} {config_path}")
+            elif args.config_command == "set":
+                if args.option and args.value:
+                    set_config_value(config, config_path, args.option, args.value)
+                else:
+                    console.print("Please provide both key and value to set.", style="bold red")
+            elif args.config_command == "get":
+                if args.option:
+                    value = config.get(args.option)
+                    if value is not None:
+                        console.print(f"{value}")
+                    else:
+                        console.print(f"Key '{args.option}' not found in config.", style="bold red")
+                else:
+                    console.print("Please provide a key to get its value.", style="bold red")
+            else:
+                show_config(config)
