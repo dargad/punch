@@ -48,12 +48,12 @@ fi
 # Define subcommand names and their descriptions (for first argument completion)
 local -a subcommands
 subcommands=(
-  'start:Mark the start of your day:contentReference[oaicite:10]{index=10}'
+  'start:Mark the start of your day'
   'add:Add a new task entry (category:task)'
-  'report:Print a report of your timecards:contentReference[oaicite:11]{index=11}'
-  'export:Export timecards to CSV/JSON:contentReference[oaicite:12]{index=12}'
-  'login:Log in to Salesforce (store credentials):contentReference[oaicite:13]{index=13}'
-  'submit:Submit timecards to Salesforce:contentReference[oaicite:14]{index=14}'
+  'report:Print a report of your timecards'
+  'export:Export timecards to CSV/JSON'
+  'login:Log in to Salesforce (store credentials)'
+  'submit:Submit timecards to Salesforce'
 )
 
 # Global options (available before or after subcommand)
