@@ -1,0 +1,353 @@
+from datetime import datetime, timedelta
+import os
+import sys
+from rich.console import Console
+from rich.tree import Tree
+from rich.syntax import Syntax
+import yaml
+
+from punch.config import set_config_value
+from punch.export import export_csv, export_json
+from punch.report import generate_report
+from punch.tasks import parse_new_task_string, write_task
+from punch.web import DRY_RUN_SUFFIX, AuthFileNotFoundError, MissingTimecardsUrl, get_timecards, login_to_site, submit_timecards
+
+def escape_separators(s):
+    """
+    Escapes colons in the input string to avoid splitting on them,
+    but only if the colon is not the first or last character.
+    """
+    if len(s) <= 2:
+        return s
+    # Replace ":" with "\:" only if not at the start or end
+    return s[0] + s[1:-1].replace(":", r"\:") + s[-1]
+
+def show_config(config):
+    """
+    Pretty-print the loaded config as YAML.
+    """
+    from rich.syntax import Syntax
+
+    console = Console()
+    yaml_str = yaml.dump(config, sort_keys=False, allow_unicode=True)
+    syntax = Syntax(yaml_str, "yaml", theme="ansi_dark", line_numbers=False)
+    console.print(syntax)
+
+def run_config_wizard(config, config_path):
+    raise NotImplementedError
+
+def handle_start(args, tasks_file):
+    start_dt = None
+    if args.time:
+        now = datetime.now()
+        start_dt = datetime.combine(now.date(), args.time)
+    write_task(tasks_file, "", "start", "", start_dt)
+
+def handle_help(parser):
+    parser.print_help()
+
+def handle_add(args, categories, tasks_file, console):
+    quick_task = sys.argv[2:]
+    task_str = " ".join([escape_separators(s) for s in quick_task])
+    try:
+        task = parse_new_task_string(task_str, categories)
+        write_task(tasks_file, task.category, task.task, task.notes)
+        print(f"Logged: {task.category} : {task.task} : {task.notes}")
+    except ValueError as e:
+        console.print(f"Error: {e}")
+        sys.exit(1)
+
+def print_report(report):
+    """
+    Pretty-print the report dictionary using a rich Tree.
+    The report dict should be in the format:
+      {category: [(task, duration)]} if collapsed,
+      or {category: [(task, notes, duration)]} if not collapsed.
+    Also prints the sum of all durations at the bottom.
+    """
+    console = Console()
+    tree = Tree("Task Report")
+
+    # Find max length for left part (task or task | notes)
+    max_left_len = 0
+    for entries in report.values():
+        for entry in entries:
+            if len(entry) == 2:
+                task = entry[0]
+                left = f"{task}"
+            elif len(entry) == 3:
+                task, notes, _ = entry
+                left = f"{task}"
+                if notes:
+                    left += f" | {notes}"
+            max_left_len = max(max_left_len, len(left))
+
+    total_duration = timedelta(0)
+
+    for category, entries in report.items():
+        cat_node = tree.add(f"[bold]{category}[/bold]")
+        for entry in entries:
+            if len(entry) == 2:
+                # collapsed: (task, duration)
+                task, duration = entry
+                minutes = int(duration.total_seconds() // 60)
+                left = f"{task}"
+            elif len(entry) == 3:
+                # not collapsed: (task, notes, duration)
+                task, notes, duration = entry
+                minutes = int(duration.total_seconds() // 60)
+                left = f"{task}"
+                if notes:
+                    left += f" | {notes}"
+            # Pad left part so all durations align
+            # Format duration as H:MM (no seconds, no days)
+            hours = int(duration.total_seconds() // 3600)
+            minutes = int((duration.total_seconds() % 3600) // 60)
+            duration_str = f"{hours}:{minutes:02d}"
+            line = f"{left.ljust(max_left_len)} {duration_str.rjust(10)} ({minutes + hours*60} min)"
+            cat_node.add(line)
+            total_duration += duration
+
+    total_minutes = int(total_duration.total_seconds() // 60)
+    total_hours = int(total_duration.total_seconds() // 3600)
+    remainder_minutes = total_minutes % 60
+    # Print total as H:MM (not days)
+    total_str = f"{total_hours}:{remainder_minutes:02d}"
+    tree.add(f"[bold yellow]Total: {total_str.rjust(max_left_len+8)} ({total_minutes} min)[/bold yellow]")
+
+    console.print(tree)
+
+def handle_report(args, tasks_file, console):
+    console.print(f"From: {getattr(args, 'from')} To: {args.to}", style="bold blue")
+    try:
+        report = generate_report(tasks_file, getattr(args, 'from'), args.to)
+        print_report(report)
+    except ValueError as e:
+        console.print(f"Error generating report: {e}", style="bold red")
+
+def handle_export(args, tasks_file, console):
+    exported_content = None
+    if args.format == "json":
+        exported_content = export_json(tasks_file, getattr(args, 'from'), args.to)
+    elif args.format == "csv":
+        exported_content = export_csv(tasks_file, getattr(args, 'from'), args.to)
+    if args.output:
+        with open(args.output, "w") as f:
+            f.write(exported_content)
+        console.print(f"Exported to {args.output}", style="bold green")
+    else:
+        console.print(exported_content)
+
+def handle_login(args, config, console):
+    try:
+        login_to_site(config, args.verbose)
+    except MissingTimecardsUrl as e:
+        console.print(f"[red]{e}[/red]")
+        sys.exit(1)
+
+def show_timecards_table(timecards):
+    """
+    Display the timecards in a table format using rich.
+    Expects timecards to be a list of dictionaries with keys:
+    'date', 'category', 'task', 'notes', 'duration'.
+    """
+    from rich.table import Table
+    from rich.console import Console
+
+    console = Console()
+    table = Table(title="Timecards for submission")
+
+    table.add_column("Case no.", justify="center", style="cyan")
+    table.add_column("Task", justify="left", style="magenta", max_width=50, no_wrap=True)
+    table.add_column("Work performed", justify="left", style="green", max_width=50, no_wrap=True)
+    table.add_column("Minutes", justify="right", style="yellow")
+    table.add_column("Start time", justify="right", style="blue")
+
+    for timecard in timecards:
+        table.add_row(
+            timecard.case_no,
+            timecard.desc,
+            timecard.work_performed,
+            str(timecard.minutes),
+            datetime.combine(
+                timecard.start_date, timecard.start_time
+            ).strftime("%Y-%m-%d %H:%M")
+        )
+
+    console.print(table)
+
+def handle_submit(args, config, tasks_file, console):
+    try:
+        if args.interactive:
+            args.headed = True  # --interactive implies --headed
+
+        timecards = []
+        try:
+            timecards = get_timecards(config, tasks_file, getattr(args, 'from'), args.to)
+        except AuthFileNotFoundError as e:
+            console.print("[red]Auth info file not found. Please login first using the 'login' command.[/red]")
+            return
+        if not timecards or len(timecards) == 0:
+            console.print("No timecards found for submission.", style="bold red")
+            return
+        show_timecards_table(timecards)
+        
+        suffix = DRY_RUN_SUFFIX if args.dry_run else ""
+        proceed = console.input(f"Proceed with submission?{suffix} (y/N): ").strip().lower()
+        if proceed != "y":
+            console.print("Submission cancelled.", style="bold yellow")
+            return
+
+        submit_timecards(
+            config,
+            timecards,
+            headless=not args.headed,
+            interactive=args.interactive,
+            dry_run=args.dry_run,
+            verbose=args.verbose,
+            sleep=args.sleep
+        )
+
+    except MissingTimecardsUrl as e:
+        console.print(f"[red]{e}[/red]")
+        sys.exit(1)
+
+def handle_config(args, config, config_path, console):
+    if args.config_command == "path":
+        console.print(f"{config_path}", style="bold blue")
+    elif args.config_command == "show":
+        show_config(config)
+    elif args.config_command == "edit":
+        os.system(f"{os.getenv('EDITOR', 'vi')} {config_path}")
+    elif args.config_command == "set":
+        if args.option and args.value:
+            set_config_value(config, config_path, args.option, args.value)
+        else:
+            console.print("Please provide both key and value to set.", style="bold red")
+    elif args.config_command == "get":
+        if args.option:
+            value = config.get(args.option)
+            if value is not None:
+                console.print(f"{value}")
+            else:
+                console.print(f"Key '{args.option}' not found in config.", style="bold red")
+        else:
+            console.print("Please provide a key to get its value.", style="bold red")
+    elif args.config_command == "wizard":
+        run_config_wizard(config, config_path)
+    else:
+        show_config(config)
+        
+def run_config_wizard(config, config_path):
+    raise NotImplementedError
+
+def handle_start(args, tasks_file):
+    start_dt = None
+    if args.time:
+        now = datetime.now()
+        start_dt = datetime.combine(now.date(), args.time)
+    write_task(tasks_file, "", "start", "", start_dt)
+
+def handle_help(parser):
+    parser.print_help()
+
+def handle_add(args, categories, tasks_file, console):
+    quick_task = sys.argv[2:]
+    task_str = " ".join([escape_separators(s) for s in quick_task])
+    try:
+        task = parse_new_task_string(task_str, categories)
+        write_task(tasks_file, task.category, task.task, task.notes)
+        print(f"Logged: {task.category} : {task.task} : {task.notes}")
+    except ValueError as e:
+        console.print(f"Error: {e}")
+        sys.exit(1)
+
+def handle_report(args, tasks_file, console):
+    console.print(f"From: {getattr(args, 'from')} To: {args.to}", style="bold blue")
+    try:
+        report = generate_report(tasks_file, getattr(args, 'from'), args.to)
+        print_report(report)
+    except ValueError as e:
+        console.print(f"Error generating report: {e}", style="bold red")
+
+def handle_export(args, tasks_file, console):
+    exported_content = None
+    if args.format == "json":
+        exported_content = export_json(tasks_file, getattr(args, 'from'), args.to)
+    elif args.format == "csv":
+        exported_content = export_csv(tasks_file, getattr(args, 'from'), args.to)
+    if args.output:
+        with open(args.output, "w") as f:
+            f.write(exported_content)
+        console.print(f"Exported to {args.output}", style="bold green")
+    else:
+        console.print(exported_content)
+
+def handle_login(args, config, console):
+    try:
+        login_to_site(config, args.verbose)
+    except MissingTimecardsUrl as e:
+        console.print(f"[red]{e}[/red]")
+        sys.exit(1)
+
+def handle_submit(args, config, tasks_file, console):
+    try:
+        if args.interactive:
+            args.headed = True  # --interactive implies --headed
+
+        timecards = []
+        try:
+            timecards = get_timecards(config, tasks_file, getattr(args, 'from'), args.to)
+        except AuthFileNotFoundError as e:
+            console.print("[red]Auth info file not found. Please login first using the 'login' command.[/red]")
+            return
+        if not timecards or len(timecards) == 0:
+            console.print("No timecards found for submission.", style="bold red")
+            return
+        show_timecards_table(timecards)
+        
+        suffix = DRY_RUN_SUFFIX if args.dry_run else ""
+        proceed = console.input(f"Proceed with submission?{suffix} (y/N): ").strip().lower()
+        if proceed != "y":
+            console.print("Submission cancelled.", style="bold yellow")
+            return
+
+        submit_timecards(
+            config,
+            timecards,
+            headless=not args.headed,
+            interactive=args.interactive,
+            dry_run=args.dry_run,
+            verbose=args.verbose,
+            sleep=args.sleep
+        )
+
+    except MissingTimecardsUrl as e:
+        console.print(f"[red]{e}[/red]")
+        sys.exit(1)
+
+def handle_config(args, config, config_path, console):
+    if args.config_command == "path":
+        console.print(f"{config_path}", style="bold blue")
+    elif args.config_command == "show":
+        show_config(config)
+    elif args.config_command == "edit":
+        os.system(f"{os.getenv('EDITOR', 'vi')} {config_path}")
+    elif args.config_command == "set":
+        if args.option and args.value:
+            set_config_value(config, config_path, args.option, args.value)
+        else:
+            console.print("Please provide both key and value to set.", style="bold red")
+    elif args.config_command == "get":
+        if args.option:
+            value = config.get(args.option)
+            if value is not None:
+                console.print(f"{value}")
+            else:
+                console.print(f"Key '{args.option}' not found in config.", style="bold red")
+        else:
+            console.print("Please provide a key to get its value.", style="bold red")
+    elif args.config_command == "wizard":
+        run_config_wizard(config, config_path)
+    else:
+        show_config(config)

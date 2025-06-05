@@ -2,16 +2,12 @@ from datetime import datetime, time, timedelta
 import os
 import sys
 from argparse import ArgumentParser
-from rich.console import Console
-from rich.tree import Tree
 import yaml
+from rich.console import Console
 
-from punch.config import load_config, get_config_path, get_tasks_file, set_config_value
-from punch.export import export_csv, export_json
-from punch.tasks import get_recent_tasks, write_task, parse_new_task_string
-from punch.report import generate_report
-from punch.web import DRY_RUN_SUFFIX, AuthFileNotFoundError, get_timecards, login_to_site, submit_timecards, MissingTimecardsUrl
-
+from punch.commands import handle_add, handle_config, handle_export, handle_help, handle_login, handle_report, handle_start, handle_submit
+from punch.config import get_config_path, get_tasks_file, load_config
+from punch.tasks import get_recent_tasks, write_task
 
 def select_from_list(console, items, prompt, style="bold yellow"):
     """
@@ -73,16 +69,6 @@ def valid_date(date_str):
         return datetime.strptime(date_str, "%Y-%m-%d").date()
     except ValueError:
         raise ValueError("Invalid date format. Use YYYY-MM-DD.")
-
-def escape_separators(s):
-    """
-    Escapes colons in the input string to avoid splitting on them,
-    but only if the colon is not the first or last character.
-    """
-    if len(s) <= 2:
-        return s
-    # Replace ":" with "\:" only if not at the start or end
-    return s[0] + s[1:-1].replace(":", r"\:") + s[-1]
 
 def prepare_parser():    
     parser = ArgumentParser(description="punch - a CLI tool for managing your tasks")
@@ -167,110 +153,9 @@ def prepare_parser():
     parser_get = config_subparsers.add_parser("get", help="Get value of a config file option")
     parser_get.add_argument("option", help="Option name to get")
 
+    config_subparsers.add_parser("wizard", help="Run the configuration wizard to set up your config")
+
     return parser
-
-def print_report(report):
-    """
-    Pretty-print the report dictionary using a rich Tree.
-    The report dict should be in the format:
-      {category: [(task, duration)]} if collapsed,
-      or {category: [(task, notes, duration)]} if not collapsed.
-    Also prints the sum of all durations at the bottom.
-    """
-    console = Console()
-    tree = Tree("Task Report")
-
-    # Find max length for left part (task or task | notes)
-    max_left_len = 0
-    for entries in report.values():
-        for entry in entries:
-            if len(entry) == 2:
-                task = entry[0]
-                left = f"{task}"
-            elif len(entry) == 3:
-                task, notes, _ = entry
-                left = f"{task}"
-                if notes:
-                    left += f" | {notes}"
-            max_left_len = max(max_left_len, len(left))
-
-    total_duration = timedelta(0)
-
-    for category, entries in report.items():
-        cat_node = tree.add(f"[bold]{category}[/bold]")
-        for entry in entries:
-            if len(entry) == 2:
-                # collapsed: (task, duration)
-                task, duration = entry
-                minutes = int(duration.total_seconds() // 60)
-                left = f"{task}"
-            elif len(entry) == 3:
-                # not collapsed: (task, notes, duration)
-                task, notes, duration = entry
-                minutes = int(duration.total_seconds() // 60)
-                left = f"{task}"
-                if notes:
-                    left += f" | {notes}"
-            # Pad left part so all durations align
-            # Format duration as H:MM (no seconds, no days)
-            hours = int(duration.total_seconds() // 3600)
-            minutes = int((duration.total_seconds() % 3600) // 60)
-            duration_str = f"{hours}:{minutes:02d}"
-            line = f"{left.ljust(max_left_len)} {duration_str.rjust(10)} ({minutes + hours*60} min)"
-            cat_node.add(line)
-            total_duration += duration
-
-    total_minutes = int(total_duration.total_seconds() // 60)
-    total_hours = int(total_duration.total_seconds() // 3600)
-    remainder_minutes = total_minutes % 60
-    # Print total as H:MM (not days)
-    total_str = f"{total_hours}:{remainder_minutes:02d}"
-    tree.add(f"[bold yellow]Total: {total_str.rjust(max_left_len+8)} ({total_minutes} min)[/bold yellow]")
-
-    console.print(tree)
-
-def show_timecards_table(timecards):
-    """
-    Display the timecards in a table format using rich.
-    Expects timecards to be a list of dictionaries with keys:
-    'date', 'category', 'task', 'notes', 'duration'.
-    """
-    from rich.table import Table
-    from rich.console import Console
-
-    console = Console()
-    table = Table(title="Timecards for submission")
-
-    table.add_column("Case no.", justify="center", style="cyan")
-    table.add_column("Task", justify="left", style="magenta", max_width=50, no_wrap=True)
-    table.add_column("Work performed", justify="left", style="green", max_width=50, no_wrap=True)
-    table.add_column("Minutes", justify="right", style="yellow")
-    table.add_column("Start time", justify="right", style="blue")
-
-    for timecard in timecards:
-        table.add_row(
-            timecard.case_no,
-            timecard.desc,
-            timecard.work_performed,
-            str(timecard.minutes),
-            datetime.combine(
-                timecard.start_date, timecard.start_time
-            ).strftime("%Y-%m-%d %H:%M")
-        )
-
-    console.print(table)
-
-def show_config(config):
-    """
-    Pretty-print the loaded config as YAML.
-    """
-    from rich.console import Console
-    from rich.syntax import Syntax
-
-    console = Console()
-    yaml_str = yaml.dump(config, sort_keys=False, allow_unicode=True)
-    syntax = Syntax(yaml_str, "yaml", theme="ansi_dark", line_numbers=False)
-    console.print(syntax)
 
 def main():
     config_path = get_config_path()
@@ -293,108 +178,18 @@ def main():
         args = parser.parse_args()
         
         if args.command == "start":
-            # Set the datetime to today with the time from args.time
-            start_dt = None
-            if args.time:
-                now = datetime.now()
-                start_dt = datetime.combine(now.date(), args.time)
-            write_task(tasks_file, "", "start", "", start_dt)
+            handle_start(args, tasks_file)
         elif args.command == "help":
-            parser.print_help()
+            handle_help(parser)
         elif args.command == "add":
-            quick_task = sys.argv[2:]
-            task_str =  " ".join([escape_separators(s) for s in quick_task])
-            try:
-                task = parse_new_task_string(task_str, categories)
-                write_task(tasks_file, task.category, task.task, task.notes)
-                print(f"Logged: {task.category} : {task.task} : {task.notes}")
-            except ValueError as e:
-                console.print(f"Error: {e}")
-                sys.exit(1)
+            handle_add(args, categories, tasks_file, console)
         elif args.command == "report":
-            # Implement report logic
-            console.print(f"From: {getattr(args, 'from')} To: {getattr(args, 'to')}", style="bold blue")
-            try:
-                report = generate_report(tasks_file, getattr(args, 'from'), args.to)
-                print_report(report)
-            except ValueError as e:
-                console.print(f"Error generating report: {e}", style="bold red")    
+            handle_report(args, tasks_file, console)
         elif args.command == "export":
-            exported_content = None
-            if args.format == "json":
-                exported_content = export_json(tasks_file, getattr(args, 'from'), args.to)
-            elif args.format == "csv":
-                exported_content = export_csv(tasks_file, getattr(args, 'from'), args.to)
-
-            if args.output:
-                with open(args.output, "w") as f:
-                    f.write(exported_content)
-                console.print(f"Exported to {args.output}", style="bold green")
-            else:
-                console.print(exported_content)
+            handle_export(args, tasks_file, console)
         elif args.command == "login":
-            try:
-                login_to_site(config, args.verbose)
-            except MissingTimecardsUrl as e:
-                console.print(f"[red]{e}[/red]")
-                sys.exit(1)
+            handle_login(args, config, console)
         elif args.command == "submit":
-            try:
-                if args.interactive:
-                    args.headed = True  # --interactive implies --headed
-
-                timecards = []
-                try:
-                    timecards = get_timecards(config, tasks_file, getattr(args, 'from'), args.to)
-                except AuthFileNotFoundError as e:
-                    console.print("[red]Auth info file not found. Please login first using the 'login' command.[/red]")
-                    return
-                if not timecards or len(timecards) == 0:
-                    console.print("No timecards found for submission.", style="bold red")
-                    return
-                show_timecards_table(timecards)
-                
-                suffix = DRY_RUN_SUFFIX if args.dry_run else ""
-                proceed = console.input(f"Proceed with submission?{suffix} (y/N): ").strip().lower()
-                if proceed != "y":
-                    console.print("Submission cancelled.", style="bold yellow")
-                    return
-
-                submit_timecards(
-                    config,
-                    timecards,
-                    headless=not args.headed,
-                    interactive=args.interactive,
-                    dry_run=args.dry_run,
-                    verbose=args.verbose,
-                    sleep=args.sleep
-                )
-
-            except MissingTimecardsUrl as e:
-                console.print(f"[red]{e}[/red]")
-                sys.exit(1)
+            handle_submit(args, config, tasks_file, console)
         elif args.command == "config":
-            if args.config_command == "path":
-                console.print(f"{config_path}", style="bold blue")
-                return
-            elif args.config_command == "show":
-                show_config(config);
-            elif args.config_command == "edit":
-                # Open the config file in the default editor
-                os.system(f"{os.getenv('EDITOR', 'vi')} {config_path}")
-            elif args.config_command == "set":
-                if args.option and args.value:
-                    set_config_value(config, config_path, args.option, args.value)
-                else:
-                    console.print("Please provide both key and value to set.", style="bold red")
-            elif args.config_command == "get":
-                if args.option:
-                    value = config.get(args.option)
-                    if value is not None:
-                        console.print(f"{value}")
-                    else:
-                        console.print(f"Key '{args.option}' not found in config.", style="bold red")
-                else:
-                    console.print("Please provide a key to get its value.", style="bold red")
-            else:
-                show_config(config)
+            handle_config(args, config, config_path, console)
