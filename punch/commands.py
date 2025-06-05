@@ -6,6 +6,8 @@ from rich.tree import Tree
 from rich.syntax import Syntax
 import yaml
 
+from playwright.sync_api import TimeoutError
+
 from punch.config import set_config_value
 from punch.export import export_csv, export_json
 from punch.report import generate_report
@@ -334,6 +336,10 @@ def handle_submit(args, config, tasks_file, console):
             verbose=args.verbose,
             sleep=args.sleep
         )
+
+    except TimeoutError:
+        console.print("[red]Submission timed out. Please retry logging in with `punch login`[/red]")
+        sys.exit(1)
 
     except MissingTimecardsUrl as e:
         console.print(f"[red]{e}[/red]")
