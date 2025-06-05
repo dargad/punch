@@ -45,18 +45,49 @@ def run_config_wizard(config, config_path):
     console.print("[bold green]Welcome to the Punch configuration wizard![/bold green]")
 
     # Full name
-    full_name = console.input("Enter your full name: ").strip()
+    current_full_name = config.get("full_name", "")
+    full_name = console.input(
+        f"Enter your full name"
+        f"{f' [{current_full_name}]' if current_full_name else ''}: "
+    ).strip()
+    if not full_name and current_full_name:
+        full_name = current_full_name
     if full_name:
         config["full_name"] = full_name
 
     # Timecards submissions link
-    timecards_url = console.input("Enter the new timecard link (URL): ").strip()
+    current_url = config.get("timecards_url", "")
+    timecards_url = console.input(
+        f"Enter the new timecard link (URL)"
+        f"{f' [{current_url!r}]' if current_url else ''}: "
+    ).strip()
+    
+    if not timecards_url and current_url:
+        timecards_url = current_url
     if timecards_url:
         config["timecards_url"] = timecards_url
 
     # Categories
+    # Load existing categories as a dict (name -> entry)
     categories = {}
+    existing_categories = config.get("categories", {})
+    if isinstance(existing_categories, dict):
+        categories.update(existing_categories)
+    elif isinstance(existing_categories, list):
+        # If categories is a list of dicts (legacy), convert to dict
+        for cat in existing_categories:
+            name = cat.get("name") or cat.get("category") or cat.get("short")
+            if name:
+                categories[name] = cat
+
     console.print("Let's add your categories. Enter each category's details. Leave short code empty to finish.")
+    if categories:
+        console.print("[yellow]Existing categories:[/yellow]")
+        for name, cat in categories.items():
+            short = cat.get("short", "")
+            caseid = cat.get("caseid", "")
+            console.print(f"  [cyan]{short}[/cyan]: {name}" + (f" (caseid: {caseid})" if caseid else ""))
+
     while True:
         short = console.input("  Short code (e.g. 'dev', 'mtg') [leave empty to finish]: ").strip()
         if not short:
