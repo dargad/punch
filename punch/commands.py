@@ -34,7 +34,83 @@ def show_config(config):
     console.print(syntax)
 
 def run_config_wizard(config, config_path):
-    raise NotImplementedError
+    """
+    Interactively prompt the user for config values and update the config file.
+    """
+    from ruamel.yaml import YAML
+    yaml_ruamel = YAML()
+    yaml_ruamel.preserve_quotes = True
+
+    console = Console()
+    console.print("[bold green]Welcome to the Punch configuration wizard![/bold green]")
+
+    # Full name
+    full_name = console.input("Enter your full name: ").strip()
+    if full_name:
+        config["full_name"] = full_name
+
+    # Timecards submissions link
+    timecards_url = console.input("Enter the new timecard link (URL): ").strip()
+    if timecards_url:
+        config["timecards_url"] = timecards_url
+
+    # Categories
+    categories = {}
+    console.print("Let's add your categories. Enter each category's details. Leave short code empty to finish.")
+    while True:
+        short = console.input("  Short code (e.g. 'dev', 'mtg') [leave empty to finish]: ").strip()
+        if not short:
+            break
+        # Require non-empty category name
+        while True:
+            name = console.input(f"[{short!r}]  Full category name: ").strip()
+            if name:
+                break
+            else:
+                console.print("[red]Category name cannot be empty.[/red]")
+        # Prompt for caseid, repeat if not a number (allow empty to skip)
+        while True:
+            caseid = console.input(f"[{short!r}]  Case id to file timecards against (leave empty to skip): ").strip()
+            if not caseid:
+                caseid = None
+                break
+            if caseid.isdigit():
+                caseid = caseid.zfill(8)
+                break
+            else:
+                console.print("[red]Case id must be a number or empty.[/red]")
+        cat_entry = {"short": short}
+        if caseid:
+            cat_entry["caseid"] = caseid
+        categories[name] = cat_entry
+        console.print()
+
+    if categories:
+        config["categories"] = categories
+
+    # Save config with comments/whitespace preserved if possible
+    if YAML is not None:
+        try:
+            # Load existing config with ruamel.yaml to preserve formatting
+            if os.path.exists(config_path):
+                with open(config_path, "r") as f:
+                    data = yaml_ruamel.load(f)
+                if data is None:
+                    data = {}
+            else:
+                data = {}
+            data.update(config)
+            with open(config_path, "w") as f:
+                yaml_ruamel.dump(data, f)
+        except Exception as e:
+            console.print(f"[red]Failed to save config with formatting: {e}[/red]")
+            with open(config_path, "w") as f:
+                yaml.dump(config, f, sort_keys=False, allow_unicode=True)
+    else:
+        with open(config_path, "w") as f:
+            yaml.dump(config, f, sort_keys=False, allow_unicode=True)
+
+    console.print(f"[bold green]Configuration saved to {config_path}[/bold green]")
 
 def handle_start(args, tasks_file):
     start_dt = None
@@ -175,120 +251,6 @@ def show_timecards_table(timecards):
         )
 
     console.print(table)
-
-def handle_submit(args, config, tasks_file, console):
-    try:
-        if args.interactive:
-            args.headed = True  # --interactive implies --headed
-
-        timecards = []
-        try:
-            timecards = get_timecards(config, tasks_file, getattr(args, 'from'), args.to)
-        except AuthFileNotFoundError as e:
-            console.print("[red]Auth info file not found. Please login first using the 'login' command.[/red]")
-            return
-        if not timecards or len(timecards) == 0:
-            console.print("No timecards found for submission.", style="bold red")
-            return
-        show_timecards_table(timecards)
-        
-        suffix = DRY_RUN_SUFFIX if args.dry_run else ""
-        proceed = console.input(f"Proceed with submission?{suffix} (y/N): ").strip().lower()
-        if proceed != "y":
-            console.print("Submission cancelled.", style="bold yellow")
-            return
-
-        submit_timecards(
-            config,
-            timecards,
-            headless=not args.headed,
-            interactive=args.interactive,
-            dry_run=args.dry_run,
-            verbose=args.verbose,
-            sleep=args.sleep
-        )
-
-    except MissingTimecardsUrl as e:
-        console.print(f"[red]{e}[/red]")
-        sys.exit(1)
-
-def handle_config(args, config, config_path, console):
-    if args.config_command == "path":
-        console.print(f"{config_path}", style="bold blue")
-    elif args.config_command == "show":
-        show_config(config)
-    elif args.config_command == "edit":
-        os.system(f"{os.getenv('EDITOR', 'vi')} {config_path}")
-    elif args.config_command == "set":
-        if args.option and args.value:
-            set_config_value(config, config_path, args.option, args.value)
-        else:
-            console.print("Please provide both key and value to set.", style="bold red")
-    elif args.config_command == "get":
-        if args.option:
-            value = config.get(args.option)
-            if value is not None:
-                console.print(f"{value}")
-            else:
-                console.print(f"Key '{args.option}' not found in config.", style="bold red")
-        else:
-            console.print("Please provide a key to get its value.", style="bold red")
-    elif args.config_command == "wizard":
-        run_config_wizard(config, config_path)
-    else:
-        show_config(config)
-        
-def run_config_wizard(config, config_path):
-    raise NotImplementedError
-
-def handle_start(args, tasks_file):
-    start_dt = None
-    if args.time:
-        now = datetime.now()
-        start_dt = datetime.combine(now.date(), args.time)
-    write_task(tasks_file, "", "start", "", start_dt)
-
-def handle_help(parser):
-    parser.print_help()
-
-def handle_add(args, categories, tasks_file, console):
-    quick_task = sys.argv[2:]
-    task_str = " ".join([escape_separators(s) for s in quick_task])
-    try:
-        task = parse_new_task_string(task_str, categories)
-        write_task(tasks_file, task.category, task.task, task.notes)
-        print(f"Logged: {task.category} : {task.task} : {task.notes}")
-    except ValueError as e:
-        console.print(f"Error: {e}")
-        sys.exit(1)
-
-def handle_report(args, tasks_file, console):
-    console.print(f"From: {getattr(args, 'from')} To: {args.to}", style="bold blue")
-    try:
-        report = generate_report(tasks_file, getattr(args, 'from'), args.to)
-        print_report(report)
-    except ValueError as e:
-        console.print(f"Error generating report: {e}", style="bold red")
-
-def handle_export(args, tasks_file, console):
-    exported_content = None
-    if args.format == "json":
-        exported_content = export_json(tasks_file, getattr(args, 'from'), args.to)
-    elif args.format == "csv":
-        exported_content = export_csv(tasks_file, getattr(args, 'from'), args.to)
-    if args.output:
-        with open(args.output, "w") as f:
-            f.write(exported_content)
-        console.print(f"Exported to {args.output}", style="bold green")
-    else:
-        console.print(exported_content)
-
-def handle_login(args, config, console):
-    try:
-        login_to_site(config, args.verbose)
-    except MissingTimecardsUrl as e:
-        console.print(f"[red]{e}[/red]")
-        sys.exit(1)
 
 def handle_submit(args, config, tasks_file, console):
     try:
