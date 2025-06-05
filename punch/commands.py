@@ -33,6 +33,65 @@ def show_config(config):
     syntax = Syntax(yaml_str, "yaml", theme="ansi_dark", line_numbers=False)
     console.print(syntax)
 
+def prompt_with_hint(console, prompt, current_value):
+    """
+    Prompt the user with a hint of the current value.
+    Returns the new value or the current value if input is empty.
+    """
+    value = console.input(f"{prompt}{f' [{current_value}]' if current_value else ''}: ").strip()
+    return value if value else current_value
+
+def prompt_category(console, existing_short=None, existing_name=None, existing_caseid=None):
+    """
+    Prompt for a single category's details.
+    Returns (short, name, caseid) or (None, None, None) if user is done.
+    """
+    short = console.input(
+        f"  Short code (e.g. 'dev', 'mtg'){f' [{existing_short}]' if existing_short else ''} [leave empty to finish]: "
+    ).strip()
+    if not short:
+        return None, None, None
+
+    # Require non-empty category name
+    while True:
+        name = console.input(
+            f"[{short!r}]  Full category name{f' [{existing_name}]' if existing_name else ''}: "
+        ).strip()
+        if name:
+            break
+        elif existing_name:
+            name = existing_name
+            break
+        else:
+            console.print("[red]Category name cannot be empty.[/red]")
+
+    # Prompt for caseid, repeat if not a number (allow empty to skip)
+    while True:
+        caseid = console.input(
+            f"[{short!r}]  Case id to file timecards against"
+            f"{f' [{existing_caseid}]' if existing_caseid else ''} (leave empty to skip): "
+        ).strip()
+        if not caseid and existing_caseid:
+            caseid = existing_caseid
+            break
+        if not caseid:
+            caseid = None
+            break
+        if caseid.isdigit():
+            caseid = caseid.zfill(8)
+            break
+        else:
+            console.print("[red]Case id must be a number or empty.[/red]")
+    return short, name, caseid
+
+def print_existing_categories(console, categories):
+    if categories:
+        console.print("[yellow]Existing categories:[/yellow]")
+        for name, cat in categories.items():
+            short = cat.get("short", "")
+            caseid = cat.get("caseid", "")
+            console.print(f"  [cyan]{short}[/cyan]: {name}" + (f" (caseid: {caseid})" if caseid else ""))
+
 def run_config_wizard(config, config_path):
     """
     Interactively prompt the user for config values and update the config file.
@@ -46,26 +105,11 @@ def run_config_wizard(config, config_path):
 
     # Full name
     current_full_name = config.get("full_name", "")
-    full_name = console.input(
-        f"Enter your full name"
-        f"{f' [{current_full_name}]' if current_full_name else ''}: "
-    ).strip()
-    if not full_name and current_full_name:
-        full_name = current_full_name
-    if full_name:
-        config["full_name"] = full_name
+    config["full_name"] = prompt_with_hint(console, "Enter your full name", current_full_name)
 
     # Timecards submissions link
     current_url = config.get("timecards_url", "")
-    timecards_url = console.input(
-        f"Enter the new timecard link (URL)"
-        f"{f' [{current_url!r}]' if current_url else ''}: "
-    ).strip()
-    
-    if not timecards_url and current_url:
-        timecards_url = current_url
-    if timecards_url:
-        config["timecards_url"] = timecards_url
+    config["timecards_url"] = prompt_with_hint(console, "Enter the new timecard link (URL)", current_url)
 
     # Categories
     # Load existing categories as a dict (name -> entry)
@@ -74,42 +118,19 @@ def run_config_wizard(config, config_path):
     if isinstance(existing_categories, dict):
         categories.update(existing_categories)
     elif isinstance(existing_categories, list):
-        # If categories is a list of dicts (legacy), convert to dict
         for cat in existing_categories:
             name = cat.get("name") or cat.get("category") or cat.get("short")
             if name:
                 categories[name] = cat
 
     console.print("Let's add your categories. Enter each category's details. Leave short code empty to finish.")
-    if categories:
-        console.print("[yellow]Existing categories:[/yellow]")
-        for name, cat in categories.items():
-            short = cat.get("short", "")
-            caseid = cat.get("caseid", "")
-            console.print(f"  [cyan]{short}[/cyan]: {name}" + (f" (caseid: {caseid})" if caseid else ""))
+    print_existing_categories(console, categories)
 
+    # Add new categories, don't replace existing
     while True:
-        short = console.input("  Short code (e.g. 'dev', 'mtg') [leave empty to finish]: ").strip()
+        short, name, caseid = prompt_category(console)
         if not short:
             break
-        # Require non-empty category name
-        while True:
-            name = console.input(f"[{short!r}]  Full category name: ").strip()
-            if name:
-                break
-            else:
-                console.print("[red]Category name cannot be empty.[/red]")
-        # Prompt for caseid, repeat if not a number (allow empty to skip)
-        while True:
-            caseid = console.input(f"[{short!r}]  Case id to file timecards against (leave empty to skip): ").strip()
-            if not caseid:
-                caseid = None
-                break
-            if caseid.isdigit():
-                caseid = caseid.zfill(8)
-                break
-            else:
-                console.print("[red]Case id must be a number or empty.[/red]")
         cat_entry = {"short": short}
         if caseid:
             cat_entry["caseid"] = caseid
@@ -122,7 +143,6 @@ def run_config_wizard(config, config_path):
     # Save config with comments/whitespace preserved if possible
     if YAML is not None:
         try:
-            # Load existing config with ruamel.yaml to preserve formatting
             if os.path.exists(config_path):
                 with open(config_path, "r") as f:
                     data = yaml_ruamel.load(f)
