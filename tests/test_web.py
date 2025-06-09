@@ -1,8 +1,9 @@
 import unittest
 import tempfile
 import os
-from punch.web import determine_case_number, DRY_RUN_SUFFIX, submit_timecards, get_timecards
+from punch.web import determine_case_number, DRY_RUN_SUFFIX, submit_timecards, get_timecards, MissingTimecardsUrl, AuthFileNotFoundError
 from types import SimpleNamespace
+from unittest.mock import patch, MagicMock
 
 class TestDetermineCaseNumber(unittest.TestCase):
     def setUp(self):
@@ -106,6 +107,28 @@ categories:
             config = yaml.safe_load(f)
         # Should return a list, even if file does not exist
         result = get_timecards(config, file_path="nonexistent.txt")
+        self.assertIsInstance(result, list)
+
+class TestGetTimecardsEdgeCases(unittest.TestCase):
+    def setUp(self):
+        self.config = {
+            "full_name": "Test User",
+            "categories": {
+                "Coding": {"short": "c", "caseid": "100"}
+            }
+        }
+
+    def test_get_timecards_empty_file(self):
+        with tempfile.NamedTemporaryFile(delete=False) as tf:
+            tf.write(b"")
+            tf.flush()
+            result = get_timecards(self.config, file_path=tf.name)
+            self.assertIsInstance(result, list)
+        os.unlink(tf.name)
+
+    def test_get_timecards_missing_file(self):
+        # Should not raise, just return empty list
+        result = get_timecards(self.config, file_path="definitely_missing.txt")
         self.assertIsInstance(result, list)
 
 if __name__ == "__main__":

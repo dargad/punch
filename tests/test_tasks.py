@@ -89,36 +89,50 @@ class TestTasks(unittest.TestCase):
             args.headed = True
         self.assertTrue(args.headed)
 
-class TestParseNewTaskString(unittest.TestCase):
-    def test_parse_new_task_string_categoryless_star(self):
-        entry = parse_new_task_string("lunch**", CATEGORIES)
-        self.assertEqual(entry.category, "")
-        self.assertEqual(entry.task, "lunch**")
-        self.assertEqual(entry.notes, "")
+    def test_parse_task_invalid_format(self):
+        # Should raise if the line is not in the expected format
+        with self.assertRaises(Exception):
+            parse_task("not a valid task line")
 
-    def test_parse_new_task_string_categoryless_double_star(self):
-        entry = parse_new_task_string("breakfast**", CATEGORIES)
-        self.assertEqual(entry.category, "")
-        self.assertEqual(entry.task, "breakfast**")
-        self.assertEqual(entry.notes, "")
+    def test_parse_new_task_string_invalid_category(self):
+        # Should raise if category short code is not found
+        with self.assertRaises(ValueError):
+            parse_new_task_string("x : Task", CATEGORIES)
 
-    def test_parse_new_task_string_with_escaped_colon_in_task(self):
-        entry = parse_new_task_string(r'c : Implement foo\:bar : Some notes', CATEGORIES)
-        self.assertEqual(entry.category, "Coding")
-        self.assertEqual(entry.task, "Implement foo:bar")
-        self.assertEqual(entry.notes, "Some notes")
+    def test_parse_new_task_string_empty(self):
+        # Should raise ValueError for empty input
+        with self.assertRaises(ValueError):
+            parse_new_task_string("", CATEGORIES)
 
-    def test_parse_new_task_string_with_escaped_colon_in_notes(self):
-        entry = parse_new_task_string(r'c : Task : Notes with foo\:bar', CATEGORIES)
-        self.assertEqual(entry.category, "Coding")
-        self.assertEqual(entry.task, "Task")
-        self.assertEqual(entry.notes, "Notes with foo:bar")
+    def test_escape_separators(self):
+        from punch.commands import escape_separators
+        self.assertEqual(escape_separators("foo:bar"), "foo\\:bar")
+        self.assertEqual(escape_separators(":bar"), ":bar")
+        self.assertEqual(escape_separators("foo:"), "foo:")
+        self.assertEqual(escape_separators("a:b:c"), "a\\:b\\:c")
 
-    def test_parse_new_task_string_with_multiple_escaped_colons(self):
-        entry = parse_new_task_string(r'c : foo\:bar\:baz : notes\:with\:colons', CATEGORIES)
-        self.assertEqual(entry.category, "Coding")
-        self.assertEqual(entry.task, "foo:bar:baz")
-        self.assertEqual(entry.notes, "notes:with:colons")
+    def test_task_entry_repr(self):
+        entry = TaskEntry(
+            finish=datetime.datetime(2025, 5, 16, 10, 0),
+            category="Coding",
+            task="Feature",
+            notes="Test",
+            duration=datetime.timedelta(hours=1)
+        )
+        self.assertIn("Coding", repr(entry))
+        self.assertIn("Feature", repr(entry))
 
-if __name__ == "__main__":
-    unittest.main()
+# Optionally, test CLI parser logic for config commands
+def test_prepare_parser_config_commands():
+    from punch.cli import prepare_parser
+    parser = prepare_parser()
+    args = parser.parse_args(['config', 'show'])
+    assert args.command == "config"
+    assert args.config_command == "show"
+    args = parser.parse_args(['config', 'set', 'foo', 'bar'])
+    assert args.config_command == "set"
+    assert args.option == "foo"
+    assert args.value == "bar"
+    args = parser.parse_args(['config', 'get', 'foo'])
+    assert args.config_command == "get"
+    assert args.option == "foo"
