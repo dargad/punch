@@ -40,7 +40,7 @@ def prompt_with_hint(console, prompt, current_value):
     Prompt the user with a hint of the current value.
     Returns the new value or the current value if input is empty.
     """
-    value = console.input(f"{prompt}{f' [{current_value}]' if current_value else ''}: ").strip()
+    value = console.input(f"{prompt}{f' [{current_value!r}]' if current_value else ''}: ").strip()
     return value if value else current_value
 
 def prompt_category(console, existing_short=None, existing_name=None, existing_caseid=None):
@@ -112,6 +112,20 @@ def run_config_wizard(config, config_path):
     # Timecards submissions link
     current_url = config.get("timecards_url", "")
     config["timecards_url"] = prompt_with_hint(console, "Enter the new timecard link (URL)", current_url)
+
+    # Timecards rounding
+    current_round = config.get("timecards_round", 0)
+    while True:
+        round_str = prompt_with_hint(
+            console,
+            "Round tracked time to nearest <X> minutes (set to 0 to disable rounding)",
+            current_round
+        )
+        try:
+            config["timecards_round"] = int(round_str)
+            break
+        except (TypeError, ValueError):
+            console.print("[red]Please enter a valid integer for rounding.[/red]")
 
     # Categories
     # Load existing categories as a dict (name -> entry)

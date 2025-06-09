@@ -134,6 +134,7 @@ def _convert_to_timecard(config, entry):
     case_no = determine_case_number(config, entry)
 
     full_name = config.get("full_name")
+    timecards_round = config.get("timecards_round", 0)
 
     if not full_name:
         raise Exception("Full name not set in config file. Please add 'full_name' to your config.")
@@ -149,6 +150,10 @@ def _convert_to_timecard(config, entry):
         work_performed = entry.task
 
     duration = int(entry.duration.total_seconds() // 60)
+    if timecards_round > 0:
+        # Round duration to nearest timecards_round minutes
+        duration = round(duration / timecards_round) * timecards_round
+
     start_time = entry.finish - datetime.timedelta(minutes=duration)
 
     return TimecardEntry(
