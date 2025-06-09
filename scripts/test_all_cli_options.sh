@@ -39,19 +39,40 @@ $PUNCH export --format json -o test_export.json
 # 6. Test: export as CSV
 $PUNCH export --format csv -o test_export.csv
 
-## 7. Test: login (should fail gracefully if not configured)
-#$PUNCH login || echo "Login failed as expected (no URL configured)"
-#
-## 8. Test: submit dry run, non-interactive, headless
-#$PUNCH submit -n
-#
-## 9. Test: submit dry run, interactive (implies headed)
-#$PUNCH submit -n -i
-#
-## 10. Test: submit with sleep
-#$PUNCH submit -n --sleep 0.1
+echo "Skipping tests that require login or config"
+# 7. Test: login (should fail gracefully if not configured)
+# $PUNCH login || echo "Login failed as expected (no URL configured)"
 
-# 11. Test: help command
+# 8. Test: submit dry run, non-interactive, headless
+# $PUNCH submit -n || echo "Submit failed as expected (no URL/config)"
+
+# 9. Test: submit dry run, interactive (implies headed)
+# $PUNCH submit -n -i || echo "Submit (interactive) failed as expected (no URL/config)"
+
+# 10. Test: submit with sleep
+# $PUNCH submit -n --sleep 0.1 || echo "Submit (sleep) failed as expected (no URL/config)"
+
+# 11. Test: config show
+$PUNCH config show
+
+# 12. Test: config path
+$PUNCH config path
+
+# 13. Test: config get (existing and non-existing option)
+$PUNCH config get categories
+$PUNCH config get doesnotexist || echo "Config get for missing option failed as expected"
+
+# 14. Test: config set (set a value and get it)
+$PUNCH config set foo bar
+$PUNCH config get foo
+
+# 15. Test: config wizard (should prompt, skip in automation)
+echo "Skipping config wizard in automation"
+
+# 16. Test: config edit (should open editor, skip in automation)
+echo "Skipping config edit in automation"
+
+# 17. Test: help command
 $PUNCH help
 
 echo "All CLI options tested."
