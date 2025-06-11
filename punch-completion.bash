@@ -38,11 +38,13 @@ _punch_complete()
         done < "$config_file"
     fi
 
-    local subcommands="start report export login submit add"
+    local subcommands="start report export login submit add config help"
+    local opts_start="-t --time"
     local opts_report="-f --from -t --to"
     local opts_export="-f --from -t --to --format -o --output"
-    local opts_submit="-f --from -t --to -n --dry-run --headed"
-    local opts_global="-v --version"
+    local opts_submit="-f --from -t --to -n --dry-run --headed -i --interactive --sleep"
+    local opts_config="show edit path set get wizard"
+    local opts_global="-v --verbose -V --version -h --help"
 
     # Subcommand completion
     if [[ ${COMP_CWORD} -eq 1 ]]; then
@@ -51,16 +53,17 @@ _punch_complete()
     fi
 
     case "${COMP_WORDS[1]}" in
+        start)
+            COMPREPLY=( $(compgen -W "$opts_start $opts_global" -- "$cur") )
+            return 0
+            ;;
         add)
             # punch add <category> :
             if [[ ${COMP_CWORD} -eq 2 ]]; then
-                # Complete category shorts
                 COMPREPLY=( $(compgen -W "$shorts" -- "$cur") )
                 return 0
             elif [[ ${COMP_CWORD} -eq 3 ]]; then
-                # Handle both: punch add c :   and punch add c: ...
                 if [[ "$prev" == *: ]]; then
-                    # Previous argument ends with ":", so complete tasks
                     local short="${prev%:}"
                     local fullcat="${short_to_full[$short]}"
                     if [[ -f "$tasks_file" && -n "$fullcat" ]]; then
@@ -80,16 +83,13 @@ _punch_complete()
                         return 0
                     fi
                 elif [[ "$cur" == ":" ]]; then
-                    # After category, complete ":"
                     COMPREPLY=( ":" )
                     return 0
                 else
-                    # After category, suggest ":"
                     COMPREPLY=( $(compgen -W ":" -- "$cur") )
                     return 0
                 fi
             elif [[ ${COMP_CWORD} -eq 4 && "${COMP_WORDS[3]}" == ":" ]]; then
-                # punch add c : <task>
                 local short="${COMP_WORDS[2]}"
                 local fullcat="${short_to_full[$short]}"
                 if [[ -f "$tasks_file" && -n "$fullcat" ]]; then
@@ -111,15 +111,36 @@ _punch_complete()
             fi
             ;;
         report)
-            COMPREPLY=( $(compgen -W "$opts_report" -- "$cur") )
+            COMPREPLY=( $(compgen -W "$opts_report $opts_global" -- "$cur") )
             return 0
             ;;
         export)
-            COMPREPLY=( $(compgen -W "$opts_export" -- "$cur") )
+            COMPREPLY=( $(compgen -W "$opts_export $opts_global" -- "$cur") )
+            return 0
+            ;;
+        login)
+            COMPREPLY=( $(compgen -W "$opts_global" -- "$cur") )
             return 0
             ;;
         submit)
-            COMPREPLY=( $(compgen -W "$opts_submit" -- "$cur") )
+            COMPREPLY=( $(compgen -W "$opts_submit $opts_global" -- "$cur") )
+            return 0
+            ;;
+        config)
+            # Complete config subcommands and options
+            if [[ ${COMP_CWORD} -eq 2 ]]; then
+                COMPREPLY=( $(compgen -W "$opts_config" -- "$cur") )
+                return 0
+            elif [[ ${COMP_CWORD} -eq 3 && "${COMP_WORDS[2]}" == "set" ]]; then
+                COMPREPLY=( $(compgen -W "option" -- "$cur") )
+                return 0
+            elif [[ ${COMP_CWORD} -eq 3 && "${COMP_WORDS[2]}" == "get" ]]; then
+                COMPREPLY=( $(compgen -W "option" -- "$cur") )
+                return 0
+            fi
+            ;;
+        help)
+            COMPREPLY=( $(compgen -W "$opts_global" -- "$cur") )
             return 0
             ;;
     esac
