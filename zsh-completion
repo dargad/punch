@@ -84,7 +84,50 @@ case $state in
         ;;
       add)
         _arguments $global_opts
-        # ...existing add completion logic...
+        # Build short-to-full mapping from config file
+        typeset -A short_to_full
+        if [[ -r $config_file ]]; then
+          local cur_cat=""
+          while IFS= read -r cfgline; do
+            # Detect category name (YAML key)
+            if [[ $cfgline == *short:* ]]; then
+              local code="${cfgline##*short:}"
+              code="${code//[[:space:]]/}"
+              if [[ -n $code && -n $cur_cat ]]; then
+                short_to_full[$code]="$cur_cat"
+              fi
+            elif [[ $cfgline =~ ^[[:space:]][[:space:]]([^:]+): ]]; then
+              cur_cat="${match[1]}"
+            fi
+          done < "$config_file"
+        fi
+
+        if (( CURRENT == 2 )); then
+          # Complete category short codes (with colon)
+          local -a shorts
+          shorts=(${(k)short_to_full})
+          compadd -Q -S ':' -- $shorts
+        elif (( CURRENT == 3 )); then
+          # Complete tasks for the selected category
+          local prev=${words[2]}
+          local catcode="${prev%:}"
+          local fullcat="${short_to_full[$catcode]}"
+          local -a task_suggestions=()
+          for line in "${tasks_lines[@]}"; do
+            IFS='|' read -r ts category task rest <<< "$line"
+            category="${category#"${category%%[![:space:]]*}"}"
+            category="${category%"${category##*[![:space:]]}"}"
+            task="${task#"${task%%[![:space:]]*}"}"
+            task="${task%"${task##*[![:space:]]}"}"
+            if [[ "$category" == "$fullcat" && -n "$task" ]]; then
+              task_suggestions+="$task"
+            fi
+          done
+          compadd -Q -U -S '' -- $task_suggestions
+        elif (( CURRENT == 4 )); then
+          _message "Enter optional notes for the task"
+        fi
+        _arguments $global_opts
         ;;
       report)
         _arguments $global_opts \
