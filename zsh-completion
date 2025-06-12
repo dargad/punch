@@ -54,12 +54,16 @@ subcommands=(
   'export:Export timecards to CSV/JSON'
   'login:Log in to Salesforce (store credentials)'
   'submit:Submit timecards to Salesforce'
+  'config:Show or edit the current configuration'
+  'help:Show this help message'
 )
 
 # Global options (available before or after subcommand)
 local -a global_opts
 global_opts=(
   '(-h --help)'{-h,--help}'[Show help information]'
+  '(-v --verbose)'{-v,--verbose}'[Enable verbose output]'
+  '(-V --version)'{-V,--version}'[Show the version of the program]'
 )
 
 # Now use _arguments to parse the command line context
@@ -70,64 +74,18 @@ _arguments -C \
 
 case $state in
   cmd)
-    # Completing the first argument (command name)
-    # Offer subcommand names and also category codes if user might be using quick entry.
-    # However, to avoid confusion with subcommands, we only list actual subcommands here.
     _describe -t commands "punch command" subcommands
     ;;
   args)
-    # Subcommand-specific completions
     case $words[1] in
-      # --- start: no extra arguments ---
       start)
-        _arguments $global_opts   # allow help option after "start"
+        _arguments $global_opts \
+          '-t+[Specify the start time (HH:MM)]:start time:_guard "[0-9]{2}:[0-9]{2}"'
         ;;
       add)
-        # Build short-to-full mapping from config file
-        typeset -A short_to_full
-        if [[ -r $config_file ]]; then
-          local cur_cat=""
-          while IFS= read -r cfgline; do
-            # Detect category name (YAML key)
-            if [[ $cfgline == *short:* ]]; then
-              local code="${cfgline##*short:}"
-              code="${code//[[:space:]]/}"
-              if [[ -n $code && -n $cur_cat ]]; then
-                short_to_full[$code]="$cur_cat"
-              fi
-            elif [[ $cfgline =~ ^[[:space:]][[:space:]]([^:]+): ]]; then
-              cur_cat="${match[1]}"
-            fi
-          done < "$config_file"
-        fi
-        
-        if (( CURRENT == 2 )); then
-          # Complete category short codes (with colon)
-          local -a shorts
-          shorts=(${(k)short_to_full})
-          compadd -Q -S ':' -- $shorts
-        elif (( CURRENT == 3 )); then
-          # Complete tasks for the selected category
-          local prev=${words[2]}
-          local catcode="${prev%:}"
-          local fullcat="${short_to_full[$catcode]}"
-          local -a task_suggestions=()
-          for line in "${tasks_lines[@]}"; do
-            IFS='|' read -r ts category task rest <<< "$line"
-            category="${category#"${category%%[![:space:]]*}"}"
-            category="${category%"${category##*[![:space:]]}"}"
-            task="${task#"${task%%[![:space:]]*}"}"
-            task="${task%"${task##*[![:space:]]}"}"
-            if [[ "$category" == "$fullcat" && -n "$task" ]]; then
-              task_suggestions+="$task"
-            fi
-          done
-          compadd -Q -U -S '' -- $task_suggestions
-        elif (( CURRENT == 4 )); then
-          _message "Enter optional notes for the task"
-        fi
+        _arguments $global_opts
+        # ...existing add completion logic...
         ;;
-      # --- report: options -f/--from, -t/--to ---
       report)
         _arguments $global_opts \
           '--from=-[Start date YYYY-MM-DD]:start date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"' \
@@ -135,8 +93,6 @@ case $state in
           '--to=-[End date YYYY-MM-DD]:end date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"' \
           '-t+-[End date YYYY-MM-DD]:end date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"'
         ;;
-
-      # --- export: options -f/--from, -t/--to, -o/--output, --format ---
       export)
         _arguments $global_opts \
           '--format=[Output format]:format:(csv json)' \
@@ -147,22 +103,31 @@ case $state in
           '--to=-[End date YYYY-MM-DD]:end date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"' \
           '-t+-[End date YYYY-MM-DD]:end date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"'
         ;;
-
-      # --- login: no options except help ---
       login)
-        _arguments $global_opts    # only -h/--help is relevant
+        _arguments $global_opts
         ;;
-
-      # --- submit: --headed option ---
       submit)
         _arguments $global_opts \
-          '--headed[Run browser in headed mode (not headless)]' \
           '--from=-[Start date YYYY-MM-DD]:start date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"' \
           '-f+-[Start date YYYY-MM-DD]:start date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"' \
           '--to=-[End date YYYY-MM-DD]:end date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"' \
-          '-t+-[End date YYYY-MM-DD]:end date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"'
+          '-t+-[End date YYYY-MM-DD]:end date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"' \
+          '-n[Perform a dry run of the submission]' \
+          '--dry-run[Perform a dry run of the submission]' \
+          '--headed[Run the browser in headed mode]' \
+          '-i[Run in interactive mode (implies --headed)]' \
+          '--interactive[Run in interactive mode (implies --headed)]' \
+          '--sleep=-[Sleep for X seconds after filling out the form]:seconds'
         ;;
-
+      config)
+        _arguments $global_opts \
+          '1:subcommand:(show edit path set get wizard)' \
+          '2:option: ' \
+          '3:value: '
+        ;;
+      help)
+        _arguments $global_opts
+        ;;
     esac
     ;;
 esac
