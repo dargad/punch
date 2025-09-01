@@ -22,6 +22,9 @@ class TimecardEntry:
     work_performed: str
     desc: str
 
+class NoCaseMappingError(Exception):
+    pass
+
 class MissingTimecardsUrl(Exception):
     pass
 
@@ -155,6 +158,9 @@ def _convert_to_timecard(config, entry):
         duration = round(duration / timecards_round) * timecards_round
 
     start_time = entry.finish - datetime.timedelta(minutes=duration)
+
+    if not case_no:
+        raise NoCaseMappingError(f"No SF case mapping found for {entry.category} : {task_name_visual}")
 
     return TimecardEntry(
         case_no, 

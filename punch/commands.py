@@ -12,7 +12,7 @@ from punch.config import set_config_value
 from punch.export import export_csv, export_json
 from punch.report import generate_report
 from punch.tasks import parse_new_task_string, write_task
-from punch.web import DRY_RUN_SUFFIX, AuthFileNotFoundError, MissingTimecardsUrl, get_timecards, login_to_site, submit_timecards
+from punch.web import DRY_RUN_SUFFIX, AuthFileNotFoundError, MissingTimecardsUrl, NoCaseMappingError, get_timecards, login_to_site, submit_timecards
 
 def escape_separators(s):
     """
@@ -330,6 +330,10 @@ def handle_submit(args, config, tasks_file, console):
         except AuthFileNotFoundError as e:
             console.print("[red]Auth info file not found. Please login first using the 'login' command.[/red]")
             return
+        except NoCaseMappingError as e:
+            console.print(f"[red]{e}[/red]")
+            return
+
         if not timecards or len(timecards) == 0:
             console.print("No timecards found for submission.", style="bold red")
             return
