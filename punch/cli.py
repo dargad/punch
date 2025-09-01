@@ -1,13 +1,21 @@
 from datetime import datetime, time, timedelta
 import os
 import sys
+import argparse
 from argparse import ArgumentParser
+import dateparser
 import yaml
 from rich.console import Console
 
 from punch.commands import handle_add, handle_config, handle_export, handle_help, handle_login, handle_report, handle_start, handle_submit
 from punch.config import get_config_path, get_tasks_file, load_config
 from punch.tasks import get_recent_tasks, write_task
+
+def parse_human_date(date_str):
+    dt = dateparser.parse(date_str).date()
+    if dt is None:
+        raise argparse.ArgumentTypeError(f"Invalid date format: '{date_str}'")
+    return dt
 
 def select_from_list(console, items, prompt, style="bold yellow"):
     """
@@ -78,8 +86,6 @@ def prepare_parser():
     )
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
 
-    today_str = datetime.now().strftime("%Y-%m-%d")
-
     subparsers = parser.add_subparsers(dest="command", help="Available commands", required=False)
 
     parser_start = subparsers.add_parser("start", help="Mark the start of your workday")
@@ -88,19 +94,26 @@ def prepare_parser():
     )
 
     parser_report = subparsers.add_parser("report", help="Print a report of your timecards")
+
     parser_report.add_argument(
-        "-f", "--from", default=today_str, type=valid_date, help="Specify the start date for the report (YYYY-MM-DD)"
+        "-d", "--day", type=parse_human_date, help="Specify a single day for the report (sets --from and --to to this date)"
     )
     parser_report.add_argument(
-        "-t", "--to", default=today_str, type=valid_date, help="Specify the end date for the report (YYYY-MM-DD)"
+        "-f", "--from", type=valid_date, help="Specify the start date for the report (YYYY-MM-DD)"
+    )
+    parser_report.add_argument(
+        "-t", "--to", type=valid_date, help="Specify the end date for the report (YYYY-MM-DD)"
     )
 
     parser_export = subparsers.add_parser("export", help="Export your timecards")
     parser_export.add_argument(
-        "-f", "--from", default=today_str, type=valid_date, help="Specify the start date for the export (YYYY-MM-DD)"
+        "-d", "--day", type=valid_date, help="Specify a single day for the report (sets --from and --to to this date)"
     )
     parser_export.add_argument(
-        "-t", "--to", default=today_str, type=valid_date, help="Specify the end date for the export (YYYY-MM-DD)"
+        "-f", "--from", type=valid_date, help="Specify the start date for the export (YYYY-MM-DD)"
+    )
+    parser_export.add_argument(
+        "-t", "--to", type=valid_date, help="Specify the end date for the export (YYYY-MM-DD)"
     )
     parser_export.add_argument(
         "--format", choices=["csv", "json"], default="json", help="Specify the format for export"
@@ -121,11 +134,15 @@ def prepare_parser():
     parser_login = subparsers.add_parser("login", help="Login to your timecards account")
 
     parser_submit = subparsers.add_parser("submit", help="Submit your timecards")
+
     parser_submit.add_argument(
-        "-f", "--from", default=today_str, type=valid_date, help="Specify the start date for the submission (YYYY-MM-DD)"
+        "-d", "--day", type=valid_date, help="Specify a single day for the report (sets --from and --to to this date)"
     )
     parser_submit.add_argument(
-        "-t", "--to", default=today_str, type=valid_date, help="Specify the end date for the submission (YYYY-MM-DD)"
+        "-f", "--from", type=valid_date, help="Specify the start date for the submission (YYYY-MM-DD)"
+    )
+    parser_submit.add_argument(
+        "-t", "--to", type=valid_date, help="Specify the end date for the submission (YYYY-MM-DD)"
     )
     parser_submit.add_argument(
         "-n", "--dry-run", action="store_true", help="Perform a dry run of the submission"
@@ -184,12 +201,29 @@ def main():
         elif args.command == "add":
             handle_add(args, categories, tasks_file, console)
         elif args.command == "report":
+            handle_day(parser, args)
             handle_report(args, tasks_file, console)
         elif args.command == "export":
+            handle_day(parser, args)
             handle_export(args, tasks_file, console)
         elif args.command == "login":
             handle_login(args, config, console)
         elif args.command == "submit":
+            handle_day(parser, args)
             handle_submit(args, config, tasks_file, console)
         elif args.command == "config":
             handle_config(args, config, config_path, console)
+
+def handle_day(parser, args):
+    today = datetime.today()
+    if args.day and (getattr(args, "from", None) or args.to):
+        parser.error("Cannot use --day with --from or --to")
+    else:
+        if not getattr(args, "from", None):
+            setattr(args, "from", today)
+        if not getattr(args, "to", None):
+            setattr(args, "to", today)
+            
+    if args.day:
+        setattr(args, "from", args.day)
+        args.to = args.day
