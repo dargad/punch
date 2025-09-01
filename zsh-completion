@@ -134,7 +134,8 @@ case $state in
           '--from=-[Start date YYYY-MM-DD]:start date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"' \
           '-f+-[Start date YYYY-MM-DD]:start date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"' \
           '--to=-[End date YYYY-MM-DD]:end date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"' \
-          '-t+-[End date YYYY-MM-DD]:end date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"'
+          '-t+-[End date YYYY-MM-DD]:end date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"' \
+          '--day=-[Date YYYY-MM-DD]:start date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"'
         ;;
       export)
         _arguments $global_opts \
@@ -144,7 +145,8 @@ case $state in
           '--from=-[Start date YYYY-MM-DD]:start date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"' \
           '-f+-[Start date YYYY-MM-DD]:start date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"' \
           '--to=-[End date YYYY-MM-DD]:end date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"' \
-          '-t+-[End date YYYY-MM-DD]:end date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"'
+          '-t+-[End date YYYY-MM-DD]:end date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"' \
+          '--day=-[Date YYYY-MM-DD]:start date:_guard "[0-9]{4}-[0-9]{2}-[0-9]{2}"'
         ;;
       login)
         _arguments $global_opts

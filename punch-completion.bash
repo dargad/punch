@@ -40,9 +40,9 @@ _punch_complete()
 
     local subcommands="start report export login submit add config help"
     local opts_start="-t --time"
-    local opts_report="-f --from -t --to"
-    local opts_export="-f --from -t --to --format -o --output"
-    local opts_submit="-f --from -t --to -n --dry-run --headed -i --interactive --sleep"
+    local opts_report="-f --from -t --to -d --day"
+    local opts_export="-f --from -t --to -d --day --format -o --output"
+    local opts_submit="-f --from -t --to -d --day -n --dry-run --headed -i --interactive --sleep"
     local opts_config="show edit path set get wizard"
     local opts_global="-v --verbose -V --version -h --help"
 
