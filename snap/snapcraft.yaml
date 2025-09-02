@@ -30,6 +30,7 @@ parts:
     plugin: python
     source: .
     build-packages:
+      - execstack
       - python3-dev
       - python3-pip
       - python3-venv
@@ -98,9 +99,12 @@ parts:
       - libsecret-1-0
       - libnotify4
     override-build: |
-      snapcraftctl build
+      craftctl default
       export PLAYWRIGHT_BROWSERS_PATH=$SNAPCRAFT_PART_INSTALL/playwright-browsers
       playwright install --with-deps firefox
+      # if [ -e $SNAPCRAFT_PART_INSTALL/playwright-browsers/firefox-1490/libonnxruntime.so ]
+      execstack --clear-execstack $SNAPCRAFT_PART_INSTALL/playwright-browsers/firefox-1490/firefox/libonnxruntime.so
+      # fi
       install -m755 punch-completion.bash $SNAPCRAFT_PART_INSTALL/bin/punch-completer
 
 # Notes:
