@@ -294,7 +294,7 @@ def _submit_entries_with_progress(console, page, config, timecards, interactive,
         )
         for idx, timecard in enumerate(timecards, 1):
 
-            _fill_single_entry(page, timecard, interactive)
+            _fill_single_entry(config, page, timecard, interactive)
 
             desc = f"{timecard.desc} - {timecard.work_performed}"
             desc = (desc[:PROGRESS_WIDTH-3] + "...") if len(desc) > PROGRESS_WIDTH else desc.ljust(PROGRESS_WIDTH)
@@ -322,7 +322,7 @@ def _submit_entries_with_progress(console, page, config, timecards, interactive,
             progress.update(task, advance=1, desc=desc, count=f"{idx}/{total}")
         progress.update(task, completed=total, count=f"{total}/{total}")
 
-def _fill_single_entry(page, timecard_entry, interactive):
+def _fill_single_entry(config, page, timecard_entry, interactive):
     _fill_owner(page, timecard_entry.owner)
 
     _fill_case_number(page, timecard_entry.case_no)
@@ -330,7 +330,7 @@ def _fill_single_entry(page, timecard_entry, interactive):
     _fill_description(page, timecard_entry.work_performed)
     _fill_duration(page, str(timecard_entry.minutes))
 
-    date = timecard_entry.start_date.strftime("%d/%m/%Y")
+    date = timecard_entry.start_date.strftime(config.get("date_format", "%d/%m/%Y"))
     _fill_date(page, date)
     time_str = timecard_entry.start_time.strftime("%H:%M")
     _fill_time(page, time_str)

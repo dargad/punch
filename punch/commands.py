@@ -113,6 +113,9 @@ def run_config_wizard(config, config_path):
     current_url = config.get("timecards_url", "")
     config["timecards_url"] = prompt_with_hint(console, "Enter the new timecard link (URL)", current_url)
 
+    date_format = config.get("date_format", "%d/%m/%Y")
+    config["date_format"] = prompt_with_hint(console, "Enter the timecard date format", date_format)
+
     # Timecards rounding
     current_round = config.get("timecards_round", 0)
     while True:
