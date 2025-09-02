@@ -1,6 +1,6 @@
 name: punch
 base: core22
-version: '0.2.6'
+version: '0.2.7'
 summary: CLI tool for tracking, reporting, and submitting your work tasks and timecards
 description: |
   Punch is a command-line tool for tracking, reporting, and submitting your work tasks and timecards.
