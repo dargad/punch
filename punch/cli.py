@@ -10,6 +10,7 @@ from rich.console import Console
 from punch.commands import handle_add, handle_config, handle_export, handle_help, handle_login, handle_report, handle_start, handle_submit
 from punch.config import get_config_path, get_tasks_file, load_config
 from punch.tasks import get_recent_tasks, write_task
+from punch import __version__
 
 def parse_human_date(date_str):
     dt = dateparser.parse(date_str).date()
@@ -81,7 +82,7 @@ def valid_date(date_str):
 def prepare_parser():    
     parser = ArgumentParser(description="punch - a CLI tool for managing your tasks")
     parser.add_argument(
-        "-V", "--version", action="version", version="%(prog)s 0.1.3",
+        "-V", "--version", action="version", version=f"%(prog)s {__version__}",
         help="Show the version of the program"
     )
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
