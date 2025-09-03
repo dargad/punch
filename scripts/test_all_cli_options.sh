@@ -33,6 +33,9 @@ $PUNCH report
 # 4. Test: report command with date range
 $PUNCH report -f 2025-01-01 -t 2025-12-31
 
+# 4. Test: report command with human readable date
+$PUNCH report -d yesterday
+
 # 5. Test: export as JSON
 $PUNCH export --format json -o test_export.json
 
