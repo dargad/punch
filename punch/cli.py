@@ -108,7 +108,7 @@ def prepare_parser():
 
     parser_export = subparsers.add_parser("export", help="Export your timecards")
     parser_export.add_argument(
-        "-d", "--day", type=valid_date, help="Specify a single day for the report (sets --from and --to to this date)"
+        "-d", "--day", type=parse_human_date, help="Specify a single day for the report (sets --from and --to to this date)"
     )
     parser_export.add_argument(
         "-f", "--from", type=valid_date, help="Specify the start date for the export (YYYY-MM-DD)"
@@ -137,7 +137,7 @@ def prepare_parser():
     parser_submit = subparsers.add_parser("submit", help="Submit your timecards")
 
     parser_submit.add_argument(
-        "-d", "--day", type=valid_date, help="Specify a single day for the report (sets --from and --to to this date)"
+        "-d", "--day", type=parse_human_date, help="Specify a single day for the report (sets --from and --to to this date)"
     )
     parser_submit.add_argument(
         "-f", "--from", type=valid_date, help="Specify the start date for the submission (YYYY-MM-DD)"
