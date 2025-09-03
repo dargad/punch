@@ -294,14 +294,12 @@ def handle_login(args, config, console):
 def show_timecards_table(timecards):
     """
     Display the timecards in a table format using rich.
-    Expects timecards to be a list of dictionaries with keys:
-    'date', 'category', 'task', 'notes', 'duration'.
     """
     from rich.table import Table
     from rich.console import Console
-
+    
     console = Console()
-    table = Table(title="Timecards for submission")
+    table = Table(title="Timecards for submission", show_footer=True)
 
     table.add_column("Case no.", justify="center", style="cyan")
     table.add_column("Task", justify="left", style="magenta", max_width=50, no_wrap=True)
@@ -309,16 +307,23 @@ def show_timecards_table(timecards):
     table.add_column("Minutes", justify="right", style="yellow")
     table.add_column("Start time", justify="right", style="blue")
 
-    for timecard in timecards:
+    total_minutes = 0
+    for tc in timecards:
+        minutes = int(getattr(tc, "minutes", 0) or 0)
+        total_minutes += minutes
         table.add_row(
-            timecard.case_no,
-            timecard.desc,
-            timecard.work_performed,
-            str(timecard.minutes),
+            str(getattr(tc, "case_no", "")),
+            str(getattr(tc, "desc", "")),
+            str(getattr(tc, "work_performed", "")),
+            str(minutes),
             datetime.combine(
-                timecard.start_date, timecard.start_time
-            ).strftime("%Y-%m-%d %H:%M")
+                getattr(tc, "start_date"), getattr(tc, "start_time")
+            ).strftime("%Y-%m-%d %H:%M"),
         )
+
+    # Footer: label + total in the Minutes column
+    table.columns[2].footer = "Total"
+    table.columns[3].footer = str(total_minutes)
 
     console.print(table)
 
