@@ -1,4 +1,4 @@
-from datetime import datetime, time, timedelta
+from datetime import date, datetime, time, timedelta
 import os
 import sys
 import argparse
@@ -12,11 +12,14 @@ from punch.config import get_config_path, get_tasks_file, load_config
 from punch.tasks import get_recent_tasks, write_task
 from punch import __version__
 
-def parse_human_date(date_str):
-    dt = dateparser.parse(date_str).date()
-    if dt is None:
-        raise argparse.ArgumentTypeError(f"Invalid date format: '{date_str}'")
-    return dt
+def parse_human_date(value: str) -> date:
+    """Parse a human-friendly date string into a date, or raise for argparse."""
+    try:
+        if (dt := dateparser.parse(value)) is None:
+            raise ValueError("dateparser returned None")
+        return dt.date()
+    except Exception as e:
+        raise argparse.ArgumentTypeError(f"Invalid date format: {value!r}") from e
 
 def select_from_list(console, items, prompt, style="bold yellow"):
     """
