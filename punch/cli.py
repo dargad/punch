@@ -95,8 +95,8 @@ def interactive_mode(categories, tasks_file):
     write_task(tasks_file, selected_category, task_name, notes)
     console.print(f"Logged: {selected_category} : {task_name} : {notes}", style="bold green")
 
-@app.callback()
-def main_callback():
+@app.callback(invoke_without_command=True)
+def main_callback(ctx: typer.Context):
     """
     punch - a CLI tool for managing your tasks
     """
@@ -108,7 +108,8 @@ def main_callback():
     config = load_config(config_path)
     tasks_file = get_tasks_file()
     categories = config.get('categories', [])
-    if len(sys.argv) == 1 or (len(sys.argv) == 2 and sys.argv[1] == "run"):
+
+    if ctx.invoked_subcommand is None:
         interactive_mode(categories, tasks_file)
         raise typer.Exit()
 
