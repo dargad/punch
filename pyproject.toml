@@ -16,9 +16,10 @@ pyyaml = ">=6.0"
 playwright = ">=1.40.0"
 ruamel-yaml = "^0.18.12"
 dateparser = "^1.2.2"
+typer = "^0.17.4"
 
 [tool.poetry.scripts]
-punch = "punch.cli:main"
+punch = "punch.cli:app"
 
 [build-system]
 requires = ["poetry-core>=1.5.0"]

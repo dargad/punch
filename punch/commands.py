@@ -264,9 +264,9 @@ def print_report(report):
     console.print(tree)
 
 def handle_report(args, tasks_file, console):
-    console.print(f"From: {getattr(args, 'from')} To: {args.to}", style="bold blue")
+    console.print(f"From: {getattr(args, 'from_')} To: {args.to}", style="bold blue")
     try:
-        report = generate_report(tasks_file, getattr(args, 'from'), args.to)
+        report = generate_report(tasks_file, getattr(args, 'from_'), args.to)
         print_report(report)
     except ValueError as e:
         console.print(f"Error generating report: {e}", style="bold red")
@@ -274,9 +274,9 @@ def handle_report(args, tasks_file, console):
 def handle_export(args, tasks_file, console):
     exported_content = None
     if args.format == "json":
-        exported_content = export_json(tasks_file, getattr(args, 'from'), args.to)
+        exported_content = export_json(tasks_file, getattr(args, 'from_'), args.to)
     elif args.format == "csv":
-        exported_content = export_csv(tasks_file, getattr(args, 'from'), args.to)
+        exported_content = export_csv(tasks_file, getattr(args, 'from_'), args.to)
     if args.output:
         with open(args.output, "w") as f:
             f.write(exported_content)
@@ -334,7 +334,7 @@ def handle_submit(args, config, tasks_file, console):
 
         timecards = []
         try:
-            timecards = get_timecards(config, tasks_file, getattr(args, 'from'), args.to)
+            timecards = get_timecards(config, tasks_file, getattr(args, 'from_'), args.to)
         except AuthFileNotFoundError as e:
             console.print("[red]Auth info file not found. Please login first using the 'login' command.[/red]")
             return

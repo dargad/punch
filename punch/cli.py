@@ -1,8 +1,9 @@
-from datetime import date, datetime, time, timedelta
+from datetime import date, datetime
 import os
 import sys
-import argparse
-from argparse import ArgumentParser
+from types import SimpleNamespace
+from typing import Optional
+import typer
 import dateparser
 import yaml
 from rich.console import Console
@@ -12,20 +13,43 @@ from punch.config import get_config_path, get_tasks_file, load_config
 from punch.tasks import get_recent_tasks, write_task
 from punch import __version__
 
-def parse_human_date(value: str) -> date:
-    """Parse a human-friendly date string into a date, or raise for argparse."""
+app = typer.Typer(help="punch - a CLI tool for managing your tasks")
+
+def check_human_date(value: str) -> str:
+    if not value:
+        return ""
     try:
-        if (dt := dateparser.parse(value)) is None:
-            raise ValueError("dateparser returned None")
+        dt = dateparser.parse(value)
+        if dt is None:
+            raise typer.BadParameter(f"Invalid date format: {value!r}")
+        return dt.date().strftime("%x")
+    except Exception as e:
+        raise typer.BadParameter(f"Invalid date format: {value!r}") from e
+    
+def human_date(value: str) -> date:
+    try:
+        dt = dateparser.parse(value)
+        if dt is None:
+            raise typer.BadParameter(f"Invalid date format: {value!r}")
         return dt.date()
     except Exception as e:
-        raise argparse.ArgumentTypeError(f"Invalid date format: {value!r}") from e
+        raise typer.BadParameter(f"Invalid date format: {value!r}") from e
+
+def check_valid_date(date_str: str) -> str:
+    if not date_str:
+        return ""
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d").date().strftime("%Y-%m-%d")
+    except ValueError:
+        raise typer.BadParameter("Invalid date format. Use YYYY-MM-DD.")
+    
+def valid_date(date_str: str) -> date:
+    try:
+        return datetime.strptime(date_str, "%Y-%m-%d").date()
+    except ValueError:
+        raise typer.BadParameter("Invalid date format. Use YYYY-MM-DD.")
 
 def select_from_list(console, items, prompt, style="bold yellow"):
-    """
-    Helper to display a numbered list and prompt for selection.
-    Returns the selected item or None if invalid.
-    """
     for idx, item in enumerate(items):
         console.print(f"{idx + 1}. {item}", style=style)
     selected = console.input(prompt)
@@ -40,7 +64,6 @@ def select_from_list(console, items, prompt, style="bold yellow"):
 
 def interactive_mode(categories, tasks_file):
     console = Console()
-    # Convert dict to list of keys if needed
     if isinstance(categories, dict):
         category_list = list(categories.keys())
     else:
@@ -72,162 +95,172 @@ def interactive_mode(categories, tasks_file):
     write_task(tasks_file, selected_category, task_name, notes)
     console.print(f"Logged: {selected_category} : {task_name} : {notes}", style="bold green")
 
-def valid_date(date_str):
+@app.callback()
+def main_callback():
     """
-    Validates the date format (YYYY-MM-DD).
-    Returns a datetime.date object if valid, raises ValueError otherwise.
+    punch - a CLI tool for managing your tasks
     """
-    try:
-        return datetime.strptime(date_str, "%Y-%m-%d").date()
-    except ValueError:
-        raise ValueError("Invalid date format. Use YYYY-MM-DD.")
-
-def prepare_parser():    
-    parser = ArgumentParser(description="punch - a CLI tool for managing your tasks")
-    parser.add_argument(
-        "-V", "--version", action="version", version=f"%(prog)s {__version__}",
-        help="Show the version of the program"
-    )
-    parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
-
-    subparsers = parser.add_subparsers(dest="command", help="Available commands", required=False)
-
-    parser_start = subparsers.add_parser("start", help="Mark the start of your workday")
-    parser_start.add_argument(
-        "-t", "--time", type=lambda s: datetime.strptime(s, "%H:%M").time(), help="Specify the start time (HH:MM)"
-    )
-
-    parser_report = subparsers.add_parser("report", help="Print a report of your timecards")
-
-    parser_report.add_argument(
-        "-d", "--day", type=parse_human_date, help="Specify a single day for the report (sets --from and --to to this date)"
-    )
-    parser_report.add_argument(
-        "-f", "--from", type=valid_date, help="Specify the start date for the report (YYYY-MM-DD)"
-    )
-    parser_report.add_argument(
-        "-t", "--to", type=valid_date, help="Specify the end date for the report (YYYY-MM-DD)"
-    )
-
-    parser_export = subparsers.add_parser("export", help="Export your timecards")
-    parser_export.add_argument(
-        "-d", "--day", type=parse_human_date, help="Specify a single day for the report (sets --from and --to to this date)"
-    )
-    parser_export.add_argument(
-        "-f", "--from", type=valid_date, help="Specify the start date for the export (YYYY-MM-DD)"
-    )
-    parser_export.add_argument(
-        "-t", "--to", type=valid_date, help="Specify the end date for the export (YYYY-MM-DD)"
-    )
-    parser_export.add_argument(
-        "--format", choices=["csv", "json"], default="json", help="Specify the format for export"
-    )
-    parser_export.add_argument(
-        "-o", "--output", help="Specify the output file for export"
-    )
-
-    parser_add = subparsers.add_parser("add", help="Add a new task")
-    parser_add.add_argument(
-        "task_args",
-        nargs="+",
-        help="Category, colon, task, and optional notes (e.g. c : Task name : Notes)"
-    )
-
-    parser_help = subparsers.add_parser("help", help="Show this help message")
-
-    parser_login = subparsers.add_parser("login", help="Login to your timecards account")
-
-    parser_submit = subparsers.add_parser("submit", help="Submit your timecards")
-
-    parser_submit.add_argument(
-        "-d", "--day", type=parse_human_date, help="Specify a single day for the report (sets --from and --to to this date)"
-    )
-    parser_submit.add_argument(
-        "-f", "--from", type=valid_date, help="Specify the start date for the submission (YYYY-MM-DD)"
-    )
-    parser_submit.add_argument(
-        "-t", "--to", type=valid_date, help="Specify the end date for the submission (YYYY-MM-DD)"
-    )
-    parser_submit.add_argument(
-        "-n", "--dry-run", action="store_true", help="Perform a dry run of the submission"
-    )
-    parser_submit.add_argument(
-        "--headed", action="store_true", help="Run the browser in headed mode"
-    )
-    parser_submit.add_argument(
-        "-i", "--interactive", action="store_true", help="Run in interactive mode (punch fills the form you click 'Save & New'). Implies --headed."
-    )
-    parser_submit.add_argument(
-        "--sleep", type=float, default=0, help="Sleep for X seconds after filling out the form"
-    )
-
-    parser_config = subparsers.add_parser("config", help="Show the current configuration")
-    config_subparsers = parser_config.add_subparsers(dest="config_command", help="Config subcommands")
-    config_subparsers.add_parser("path", help="Show the path of current configuration file")
-    config_subparsers.add_parser("show", help="Show the current configuration")
-    config_subparsers.add_parser("edit", help="Edit the configuration file")
-
-    parser_set = config_subparsers.add_parser("set", help="Set config file option")
-    parser_set.add_argument("option", help="Option name to set")
-    parser_set.add_argument("value", help="Value to set for the option")
-
-    parser_get = config_subparsers.add_parser("get", help="Get value of a config file option")
-    parser_get.add_argument("option", help="Option name to get")
-
-    config_subparsers.add_parser("wizard", help="Run the configuration wizard to set up your config")
-
-    return parser
-
-def main():
     config_path = get_config_path()
     if not os.path.exists(config_path):
-        # If config does not exist, create directory and empty config
         os.makedirs(os.path.dirname(config_path), exist_ok=True)
         with open(config_path, "w") as f:
             f.write("categories: []\n")
     config = load_config(config_path)
     tasks_file = get_tasks_file()
     categories = config.get('categories', [])
-    console = Console()
-
-    # If no arguments, enter interactive mode
-    if len(sys.argv) == 1:
+    if len(sys.argv) == 1 or (len(sys.argv) == 2 and sys.argv[1] == "run"):
         interactive_mode(categories, tasks_file)
-        return
-    else:
-        parser = prepare_parser()
-        args = parser.parse_args()
-        
-        if args.command == "start":
-            handle_start(args, tasks_file)
-        elif args.command == "help":
-            handle_help(parser)
-        elif args.command == "add":
-            handle_add(args, categories, tasks_file, console)
-        elif args.command == "report":
-            handle_day(parser, args)
-            handle_report(args, tasks_file, console)
-        elif args.command == "export":
-            handle_day(parser, args)
-            handle_export(args, tasks_file, console)
-        elif args.command == "login":
-            handle_login(args, config, console)
-        elif args.command == "submit":
-            handle_day(parser, args)
-            handle_submit(args, config, tasks_file, console)
-        elif args.command == "config":
-            handle_config(args, config, config_path, console)
+        raise typer.Exit()
 
-def handle_day(parser, args):
-    today = datetime.today()
-    if args.day and (getattr(args, "from", None) or args.to):
-        parser.error("Cannot use --day with --from or --to")
+@app.command()
+def start(
+    time: str = typer.Option(None, "-t", "--time", help="Specify the start time (HH:MM)"),
+    verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable verbose output"),
+):
+    tasks_file = get_tasks_file()
+    handle_start(SimpleNamespace(time=datetime.strptime(time, "%H:%M").time() if time else None, verbose=verbose), tasks_file)
+
+@app.command()
+def add(
+    task_args: list[str] = typer.Argument(..., help="Category, colon, task, and optional notes (e.g. c : Task name : Notes)"),
+    verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable verbose output"),
+):
+    config = load_config(get_config_path())
+    categories = config.get('categories', {})
+    tasks_file = get_tasks_file()
+    console = Console()
+    handle_add(SimpleNamespace(task_args=task_args, verbose=verbose), categories, tasks_file, console)
+
+def resolve_date_range(day: Optional[str], from_date: Optional[str], to_date: Optional[str], ctx_name: str = "report"):
+    """
+    Validate and resolve day/from_date/to_date logic for report/export/submit commands.
+    Returns (day, from_date, to_date) as date objects.
+    Raises Typer.Exit on invalid input.
+    """
+    # Mutual exclusivity
+    if day and (from_date or to_date):
+        typer.secho(f"Use either --day OR --from/--to, not both in {ctx_name}.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    # Range rules
+    if to_date and not from_date:
+        typer.secho(f"If you pass --to, you must also pass --from in {ctx_name}.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    # Convert to date objects
+    day_obj = human_date(day) if day else None
+    from_obj = valid_date(from_date) if from_date else None
+    to_obj = valid_date(to_date) if to_date else None
+
+    if from_obj and to_obj and from_obj > to_obj:
+        typer.secho(f"--from cannot be after --to in {ctx_name}.", fg=typer.colors.RED)
+        raise typer.Exit(code=1)
+
+    if day_obj:
+        from_obj = to_obj = day_obj
+    elif from_obj and not to_obj:
+        to_obj = date.today()
     else:
-        if not getattr(args, "from", None):
-            setattr(args, "from", today)
-        if not getattr(args, "to", None):
-            setattr(args, "to", today)
-            
-    if args.day:
-        setattr(args, "from", args.day)
-        args.to = args.day
+        day = from_obj = to_obj = date.today()
+
+    return day_obj, from_obj, to_obj
+
+@app.command()
+def report(
+    day: Optional[str] = typer.Option(
+        None, "-d", "--day", help="Generate report for a single day",
+        callback=check_human_date
+    ),
+    from_date: Optional[str] = typer.Option(
+        None, "-f", "--from", help="Start date for the report.",
+        callback=check_valid_date
+    ),
+    to_date: Optional[str] = typer.Option(
+        None, "-t", "--to", help="End date for the report (defaults to today if --from is given).",
+        callback=check_valid_date
+    ),
+):
+    day_obj, from_obj, to_obj = resolve_date_range(day, from_date, to_date, ctx_name="report")
+    parser_args = SimpleNamespace(day=day_obj, from_=from_obj, to=to_obj)
+    tasks_file = get_tasks_file()
+    console = Console()
+    handle_report(parser_args, tasks_file, console)
+
+@app.command()
+def export(
+    day: str = typer.Option(None, "-d", "--day", help="Specify a single day for the report (sets --from and --to to this date)", callback=check_human_date),
+    from_: str = typer.Option(None, "-f", "--from", help="Specify the start date for the export (YYYY-MM-DD)", callback=check_valid_date),
+    to: str = typer.Option(None, "-t", "--to", help="Specify the end date for the export (YYYY-MM-DD)", callback=check_valid_date),
+    format: str = typer.Option("json", "--format", help="Specify the format for export", show_choices=True, case_sensitive=False),
+    output: str = typer.Option(None, "-o", "--output", help="Specify the output file for export"),
+    verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable verbose output"),
+):
+    day_obj, from_obj, to_obj = resolve_date_range(day, from_, to, ctx_name="export")
+    parser_args = SimpleNamespace(day=day_obj, from_=from_obj, to=to_obj, format=format, output=output, verbose=verbose)
+    tasks_file = get_tasks_file()
+    console = Console()
+    handle_export(parser_args, tasks_file, console)
+
+@app.command()
+def login(
+    verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable verbose output"),
+):
+    config = load_config(get_config_path())
+    console = Console()
+    handle_login(SimpleNamespace(verbose=verbose), config, console)
+
+@app.command()
+def submit(
+    day: str = typer.Option(None, "-d", "--day", help="Specify a single day for the report (sets --from and --to to this date)", callback=check_human_date),
+    from_: str = typer.Option(None, "-f", "--from", help="Specify the start date for the submission (YYYY-MM-DD)", callback=check_valid_date),
+    to: str = typer.Option(None, "-t", "--to", help="Specify the end date for the submission (YYYY-MM-DD)", callback=check_valid_date),
+    dry_run: bool = typer.Option(False, "-n", "--dry-run", help="Perform a dry run of the submission"),
+    headed: bool = typer.Option(False, "--headed", help="Run the browser in headed mode"),
+    interactive: bool = typer.Option(False, "-i", "--interactive", help="Run in interactive mode (implies --headed)"),
+    sleep: float = typer.Option(0, "--sleep", help="Sleep for X seconds after filling out the form"),
+    verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable verbose output"),
+):
+    day_obj, from_obj, to_obj = resolve_date_range(day, from_, to, ctx_name="submit")
+    parser_args = SimpleNamespace(day=day_obj, from_=from_obj, to=to_obj, dry_run=dry_run, headed=headed, interactive=interactive, sleep=sleep, verbose=verbose)
+    config = load_config(get_config_path())
+    tasks_file = get_tasks_file()
+    console = Console()
+    handle_submit(parser_args, config, tasks_file, console)
+
+@app.command()
+def config(
+    config_command: str = typer.Argument(..., help="Config subcommand (show, edit, path, set, get, wizard)"),
+    option: str = typer.Argument(None, help="Option name for set/get"),
+    value: str = typer.Argument(None, help="Value for set"),
+    verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable verbose output"),
+):
+    config_path = get_config_path()
+    config_data = load_config(config_path)
+    console = Console()
+    args = SimpleNamespace(config_command=config_command, option=option, value=value, verbose=verbose)
+    handle_config(args, config_data, config_path, console)
+
+@app.command()
+def help(
+    ctx: typer.Context,
+    command: str = typer.Argument(None, help="Nazwa podkomendy")
+):
+    """
+    Pokaż ogólną pomoc lub pomoc dla wybranej podkomendy.
+    """
+    # Jeśli nie podano nazwy komendy → pokaż ogólną pomoc
+    if not command:
+        typer.echo(ctx.parent.get_help() if ctx.parent else ctx.get_help())
+        raise typer.Exit()
+
+    # Pobierz podkomendę po nazwie
+    commands = ctx.parent.command.commands if ctx.parent else ctx.command.commands
+    if command in commands:
+        sub_cmd = commands[command]
+        typer.echo(sub_cmd.get_help(ctx))
+    else:
+        typer.echo(f"Nie znaleziono komendy: {command}")
+        raise typer.Exit(code=1)
+
+if __name__ == "__main__":
+    app()
