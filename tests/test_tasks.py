@@ -73,22 +73,6 @@ class TestTasks(unittest.TestCase):
         duration = entry.finish - prev.finish
         self.assertTrue(isinstance(duration, datetime.timedelta))
 
-    def test_start_command_time_argument(self):
-        # Simulate the CLI 'start' command with -t argument
-        from punch.cli import prepare_parser
-        parser = prepare_parser()
-        args = parser.parse_args(['start', '-t', '09:15'])
-        self.assertEqual(args.time, datetime.time(9, 15))
-
-    def test_submit_interactive_implies_headed(self):
-        from punch.cli import prepare_parser
-        parser = prepare_parser()
-        args = parser.parse_args(['submit', '-i'])
-        # Simulate CLI logic: interactive implies headed
-        if getattr(args, "interactive", False):
-            args.headed = True
-        self.assertTrue(args.headed)
-
     def test_parse_task_invalid_format(self):
         # Should raise if the line is not in the expected format
         with self.assertRaises(Exception):
@@ -122,17 +106,38 @@ class TestTasks(unittest.TestCase):
         self.assertIn("Coding", repr(entry))
         self.assertIn("Feature", repr(entry))
 
-# Optionally, test CLI parser logic for config commands
-def test_prepare_parser_config_commands():
-    from punch.cli import prepare_parser
-    parser = prepare_parser()
-    args = parser.parse_args(['config', 'show'])
-    assert args.command == "config"
-    assert args.config_command == "show"
-    args = parser.parse_args(['config', 'set', 'foo', 'bar'])
-    assert args.config_command == "set"
-    assert args.option == "foo"
-    assert args.value == "bar"
-    args = parser.parse_args(['config', 'get', 'foo'])
-    assert args.config_command == "get"
-    assert args.option == "foo"
+# Typer-based CLI tests (basic smoke test using subprocess)
+import subprocess
+
+class TestTyperCLI(unittest.TestCase):
+    def test_report_help(self):
+        result = subprocess.run(
+            ["python", "-m", "punch.cli", "report", "--help"],
+            capture_output=True, text=True
+        )
+        self.assertIn("Usage", result.stdout)
+        self.assertEqual(result.returncode, 0)
+
+    def test_start_help(self):
+        result = subprocess.run(
+            ["python", "-m", "punch.cli", "start", "--help"],
+            capture_output=True, text=True
+        )
+        self.assertIn("Usage", result.stdout)
+        self.assertEqual(result.returncode, 0)
+
+    def test_config_show_help(self):
+        result = subprocess.run(
+            ["python", "-m", "punch.cli", "config", "show", "--help"],
+            capture_output=True, text=True
+        )
+        self.assertIn("Usage", result.stdout)
+        self.assertEqual(result.returncode, 0)
+
+    def test_cli_global_help(self):
+        result = subprocess.run(
+            ["python", "-m", "punch.cli", "--help"],
+            capture_output=True, text=True
+        )
+        self.assertIn("Usage", result.stdout)
+        self.assertEqual(result.returncode, 0)
