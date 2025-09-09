@@ -340,7 +340,7 @@ def config_set(
     config_path = get_config_path()
     config_data = load_config(config_path)
     from punch.config import set_config_value
-    set_config_value(config_data, option, value)
+    set_config_value(config_data, config_path, option, value)
     typer.echo(f"Set {option} to {value}")
 
 @config_app.command("get")
