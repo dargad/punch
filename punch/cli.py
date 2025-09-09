@@ -12,12 +12,14 @@ import dateparser
 import yaml
 from rich.console import Console
 
-from punch.commands import handle_add, handle_config, handle_export, handle_help, handle_login, handle_report, handle_start, handle_submit
+from punch.commands import handle_add, handle_export, handle_help, handle_login, handle_report, handle_start, handle_submit
 from punch.config import get_config_path, get_tasks_file, load_config
 from punch.tasks import get_recent_tasks, write_task
 from punch import __version__, _DISTRIBUTION
 
 app = typer.Typer(help="punch - a CLI tool for managing your tasks")
+config_app = typer.Typer(help="Manage configuration options.")
+app.add_typer(config_app, name="config")
 
 def check_human_date(value: str) -> str:
     if not value:
@@ -301,22 +303,69 @@ def submit(
     console = Console()
     handle_submit(parser_args, config, tasks_file, console)
 
-@app.command()
-def config(
-    config_command: str = typer.Argument(..., help="Config subcommand (show, edit, path, set, get, wizard)"),
-    option: str = typer.Argument(None, help="Option name for set/get"),
-    value: str = typer.Argument(None, help="Value for set"),
+@config_app.command("show")
+def config_show(
     verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable verbose output"),
 ):
-    """
-    Manage configuration options.
-    """
+    """Show the current configuration."""
     config_path = get_config_path()
     config_data = load_config(config_path)
     console = Console()
-    args = SimpleNamespace(config_command=config_command, option=option, value=value, verbose=verbose)
-    handle_config(args, config_data, config_path, console)
+    from punch.commands import show_config
+    show_config(config_data)
 
+@config_app.command("edit")
+def config_edit(
+    verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable verbose output"),
+):
+    """Edit the configuration file in $EDITOR."""
+    config_path = get_config_path()
+    os.system(f"{os.getenv('EDITOR', 'vi')} {config_path}")
+
+@config_app.command("path")
+def config_path_cmd(
+    verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable verbose output"),
+):
+    """Show the path to the configuration file."""
+    config_path = get_config_path()
+    typer.echo(config_path)
+
+@config_app.command("set")
+def config_set(
+    option: str = typer.Argument(..., help="Option name to set"),
+    value: str = typer.Argument(..., help="Value to set"),
+    verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable verbose output"),
+):
+    """Set a configuration value."""
+    config_path = get_config_path()
+    config_data = load_config(config_path)
+    from punch.config import set_config_value
+    set_config_value(config_data, option, value)
+    typer.echo(f"Set {option} to {value}")
+
+@config_app.command("get")
+def config_get(
+    option: str = typer.Argument(..., help="Option name to get"),
+    verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable verbose output"),
+):
+    """Get a configuration value."""
+    config_path = get_config_path()
+    config_data = load_config(config_path)
+    value = config_data.get(option)
+    if value is not None:
+        typer.echo(value)
+    else:
+        typer.echo(f"Key '{option}' not found in config.")
+
+@config_app.command("wizard")
+def config_wizard(
+    verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable verbose output"),
+):
+    """Run the interactive configuration wizard."""
+    config_path = get_config_path()
+    config_data = load_config(config_path)
+    from punch.commands import run_config_wizard
+    run_config_wizard(config_data, config_path)
 @app.command("help")
 def help_cmd(
     ctx: typer.Context,

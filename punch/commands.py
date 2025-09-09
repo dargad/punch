@@ -370,29 +370,3 @@ def handle_submit(args, config, tasks_file, console):
     except MissingTimecardsUrl as e:
         console.print(f"[red]{e}[/red]")
         sys.exit(1)
-
-def handle_config(args, config, config_path, console):
-    if args.config_command == "path":
-        console.print(f"{config_path}", style="bold blue")
-    elif args.config_command == "show":
-        show_config(config)
-    elif args.config_command == "edit":
-        os.system(f"{os.getenv('EDITOR', 'vi')} {config_path}")
-    elif args.config_command == "set":
-        if args.option and args.value:
-            set_config_value(config, config_path, args.option, args.value)
-        else:
-            console.print("Please provide both key and value to set.", style="bold red")
-    elif args.config_command == "get":
-        if args.option:
-            value = config.get(args.option)
-            if value is not None:
-                console.print(f"{value}")
-            else:
-                console.print(f"Key '{args.option}' not found in config.", style="bold red")
-        else:
-            console.print("Please provide a key to get its value.", style="bold red")
-    elif args.config_command == "wizard":
-        run_config_wizard(config, config_path)
-    else:
-        show_config(config)
