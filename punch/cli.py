@@ -118,6 +118,9 @@ def start(
     time: str = typer.Option(None, "-t", "--time", help="Specify the start time (HH:MM)"),
     verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable verbose output"),
 ):
+    """
+    Mark the start of your day.
+    """
     tasks_file = get_tasks_file()
     handle_start(SimpleNamespace(time=datetime.strptime(time, "%H:%M").time() if time else None, verbose=verbose), tasks_file)
 
@@ -126,6 +129,9 @@ def add(
     task_args: list[str] = typer.Argument(..., help="Category, colon, task, and optional notes (e.g. c : Task name : Notes)"),
     verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable verbose output"),
 ):
+    """
+    Add a new task.
+    """
     config = load_config(get_config_path())
     categories = config.get('categories', {})
     tasks_file = get_tasks_file()
@@ -181,6 +187,9 @@ def report(
         callback=check_valid_date
     ),
 ):
+    """
+    Show report for a specific day or date range.
+    """
     day_obj, from_obj, to_obj = resolve_date_range(day, from_date, to_date, ctx_name="report")
     parser_args = SimpleNamespace(day=day_obj, from_=from_obj, to=to_obj)
     tasks_file = get_tasks_file()
@@ -196,6 +205,9 @@ def export(
     output: str = typer.Option(None, "-o", "--output", help="Specify the output file for export"),
     verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable verbose output"),
 ):
+    """
+    Export tasks for a specific day or date range.
+    """
     day_obj, from_obj, to_obj = resolve_date_range(day, from_, to, ctx_name="export")
     parser_args = SimpleNamespace(day=day_obj, from_=from_obj, to=to_obj, format=format, output=output, verbose=verbose)
     tasks_file = get_tasks_file()
@@ -206,6 +218,9 @@ def export(
 def login(
     verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable verbose output"),
 ):
+    """
+    Log in to SF and store your session locally.
+    """
     config = load_config(get_config_path())
     console = Console()
     handle_login(SimpleNamespace(verbose=verbose), config, console)
@@ -221,6 +236,9 @@ def submit(
     sleep: float = typer.Option(0, "--sleep", help="Sleep for X seconds after filling out the form"),
     verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable verbose output"),
 ):
+    """
+    Submit timecards for a specific day or date range to SF.
+    """
     day_obj, from_obj, to_obj = resolve_date_range(day, from_, to, ctx_name="submit")
     parser_args = SimpleNamespace(day=day_obj, from_=from_obj, to=to_obj, dry_run=dry_run, headed=headed, interactive=interactive, sleep=sleep, verbose=verbose)
     config = load_config(get_config_path())
@@ -235,33 +253,47 @@ def config(
     value: str = typer.Argument(None, help="Value for set"),
     verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable verbose output"),
 ):
+    """
+    Manage configuration options.
+    """
     config_path = get_config_path()
     config_data = load_config(config_path)
     console = Console()
     args = SimpleNamespace(config_command=config_command, option=option, value=value, verbose=verbose)
     handle_config(args, config_data, config_path, console)
 
-@app.command()
-def help(
+@app.command("help")
+def help_cmd(
     ctx: typer.Context,
-    command: str = typer.Argument(None, help="Nazwa podkomendy")
+    command: Optional[list[str]] = typer.Argument(
+        None,
+        help="Show help for this app or a subcommand path, e.g. `help greet` or `help tools sub`.",
+    ),
 ):
-    """
-    Pokaż ogólną pomoc lub pomoc dla wybranej podkomendy.
-    """
-    # Jeśli nie podano nazwy komendy → pokaż ogólną pomoc
+    """Show the same help text as `--help`."""
+    # `ctx` here is the context of the `help` command. Its parent is the app context.
     if not command:
-        typer.echo(ctx.parent.get_help() if ctx.parent else ctx.get_help())
+        # Root help (same as `myprog --help`)
+        typer.echo(ctx.parent.get_help())
         raise typer.Exit()
 
-    # Pobierz podkomendę po nazwie
-    commands = ctx.parent.command.commands if ctx.parent else ctx.command.commands
-    if command in commands:
-        sub_cmd = commands[command]
-        typer.echo(sub_cmd.get_help(ctx))
-    else:
-        typer.echo(f"Nie znaleziono komendy: {command}")
-        raise typer.Exit(code=1)
+    # Resolve a nested command path (e.g. ["tools", "build"])
+    cmd = ctx.parent.command  # start at the app (click.MultiCommand)
+    target = None
+    info_parts: list[str] = []
+
+    for name in command:
+        info_parts.append(name)
+        target = cmd.get_command(ctx.parent, name)  # click API
+        if target is None:
+            typer.secho(f"Unknown command: {' '.join(info_parts)}", fg=typer.colors.RED, err=True)
+            raise typer.Exit(code=2)
+        cmd = target  # descend
+
+    # Show help for the resolved command
+    with typer.Context(target, info_name=" ".join(info_parts), parent=ctx.parent) as subctx:
+        typer.echo(target.get_help(subctx))
+    raise typer.Exit()
 
 if __name__ == "__main__":
     app()
