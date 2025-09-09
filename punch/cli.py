@@ -1,5 +1,8 @@
 from datetime import date, datetime
+from importlib.metadata import version
+from importlib.resources import files
 import os
+from pathlib import Path
 import sys
 from types import SimpleNamespace
 from typing import Optional
@@ -94,6 +97,21 @@ def interactive_mode(categories, tasks_file):
     notes = console.input("Enter notes (optional): ")
     write_task(tasks_file, selected_category, task_name, notes)
     console.print(f"Logged: {selected_category} : {task_name} : {notes}", style="bold green")
+
+def read_changelog() -> str:
+    base = files("punch").parent
+    path = base / "CHANGELOG.md"
+    return path.read_text(encoding="utf-8")
+
+# def read_changelog() -> str:
+#     snap = os.getenv("SNAP")
+#     if snap:
+#         p = Path(snap) / "usr/share/punch/CHANGELOG.md"
+#         if p.exists():
+#             return p.read_text(encoding="utf-8")
+#     # fallback: jeśli dodałeś też include = ["CHANGELOG.md"] w Poetry
+#     from importlib.resources import files
+#     return (files("punch").parent / "CHANGELOG.md").read_text(encoding="utf-8")
 
 @app.callback(invoke_without_command=True)
 def main_callback(ctx: typer.Context):
@@ -294,6 +312,30 @@ def help_cmd(
     with typer.Context(target, info_name=" ".join(info_parts), parent=ctx.parent) as subctx:
         typer.echo(target.get_help(subctx))
     raise typer.Exit()
+
+@app.command("whats-new")
+def whats_new():
+    """
+    Show changes to the current version.
+    """
+    console = Console()
+    changelog = read_changelog()
+    current_ver = __version__
+    text = ""
+
+    if current_ver:
+        out = []
+        copy = False
+        for line in changelog.splitlines():
+            if line.startswith("## ") and current_ver in line:
+                copy = True
+            elif line.startswith("#") and copy:
+                break
+            if copy:
+                out.append(line)
+        text = "\n".join(out) or f"Version not found ini changelog: {current_ver}."
+    
+    console.print(text)
 
 if __name__ == "__main__":
     app()
