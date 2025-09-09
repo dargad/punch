@@ -6,8 +6,9 @@ authors = ["Dariusz Gadomski <dgadomski@ubuntu.com>"]
 license = "MIT"
 readme = "README.md"
 homepage = "https://github.com/dargad/punch"
-repository = "https://github.com/dargad/punch"
+repository = "https://github.com/dargad/punch.git"
 packages = [{ include = "punch" }]
+include = ["CHANGELOG.md"]
 
 [tool.poetry.dependencies]
 python = ">=3.8"
