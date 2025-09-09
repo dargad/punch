@@ -100,9 +100,14 @@ def interactive_mode(categories, tasks_file):
     console.print(f"Logged: {selected_category} : {task_name} : {notes}", style="bold green")
 
 def read_changelog() -> str:
-    base = files("punch").parent
-    path = base / "CHANGELOG.md"
-    return path.read_text(encoding="utf-8")
+    snap = os.getenv("SNAP")
+    if snap:
+        p = Path(snap) / "usr/share/punch/CHANGELOG.md"
+        if p.exists():
+            return p.read_text(encoding="utf-8")
+    # fallback: jeśli dodałeś też include = ["CHANGELOG.md"] w Poetry
+    from importlib.resources import files
+    return (files("punch").parent / "CHANGELOG.md").read_text(encoding="utf-8")
 
 def current_version() -> str:
     return os.getenv("SNAP_VERSION") or (version(_DISTRIBUTION) if not os.getenv("SNAP") else "0.0.0")
@@ -138,7 +143,7 @@ def mark_seen(cv: str):
     save_state(st)
 
 def show_teaser(cv: str):
-    typer.secho(f"🔹 New in {cv}: try '{_DISTRIBUTION} whats-new' to read more.", dim=True)
+    typer.secho(f"🔹 New version: {cv}. Try '{_DISTRIBUTION} whats-new' to read more.", dim=True)
 
 @app.callback(invoke_without_command=True)
 def main_callback(ctx: typer.Context):
