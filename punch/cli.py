@@ -1,6 +1,7 @@
 from datetime import date, datetime
 from importlib.metadata import version
 from importlib.resources import files
+import json
 import os
 from pathlib import Path
 import sys
@@ -14,7 +15,7 @@ from rich.console import Console
 from punch.commands import handle_add, handle_config, handle_export, handle_help, handle_login, handle_report, handle_start, handle_submit
 from punch.config import get_config_path, get_tasks_file, load_config
 from punch.tasks import get_recent_tasks, write_task
-from punch import __version__
+from punch import __version__, _DISTRIBUTION
 
 app = typer.Typer(help="punch - a CLI tool for managing your tasks")
 
@@ -103,21 +104,52 @@ def read_changelog() -> str:
     path = base / "CHANGELOG.md"
     return path.read_text(encoding="utf-8")
 
-# def read_changelog() -> str:
-#     snap = os.getenv("SNAP")
-#     if snap:
-#         p = Path(snap) / "usr/share/punch/CHANGELOG.md"
-#         if p.exists():
-#             return p.read_text(encoding="utf-8")
-#     # fallback: jeśli dodałeś też include = ["CHANGELOG.md"] w Poetry
-#     from importlib.resources import files
-#     return (files("punch").parent / "CHANGELOG.md").read_text(encoding="utf-8")
+def current_version() -> str:
+    return os.getenv("SNAP_VERSION") or (version(_DISTRIBUTION) if not os.getenv("SNAP") else "0.0.0")
+
+def user_state_path() -> Path:
+    base = Path(os.getenv("SNAP_USER_DATA") or Path.home() / ".config" / _DISTRIBUTION)
+    base.mkdir(parents=True, exist_ok=True)
+    return base / "state.json"
+
+def load_state():
+    p = user_state_path()
+    if p.exists():
+        try:
+            return json.loads(p.read_text() or "{}")
+        except Exception:
+            return {}
+    return {}
+
+def save_state(state):
+    user_state_path().write_text(json.dumps(state))
+
+def should_show_news(cv: str) -> bool:
+    if not sys.stdout.isatty():
+        return False
+    if os.getenv(f"{_DISTRIBUTION.upper()}_NO_NEWS") == "1":
+        return False
+    st = load_state()
+    return st.get("last_seen_version") != cv
+
+def mark_seen(cv: str):
+    st = load_state()
+    st["last_seen_version"] = cv
+    save_state(st)
+
+def show_teaser(cv: str):
+    typer.secho(f"🔹 New in {cv}: try '{_DISTRIBUTION} whats-new' to read more.", dim=True)
 
 @app.callback(invoke_without_command=True)
 def main_callback(ctx: typer.Context):
     """
     punch - a CLI tool for managing your tasks
     """
+    cv = __version__
+    if should_show_news(cv):
+        show_teaser(cv)
+        mark_seen(cv)
+
     config_path = get_config_path()
     if not os.path.exists(config_path):
         os.makedirs(os.path.dirname(config_path), exist_ok=True)
