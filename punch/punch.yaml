@@ -1,0 +1,7 @@
+full_name: Dariusz Gadomski
+timecards_url: https://canonical.lightning.force.com/lightning/o/TimeCard__c/new
+categories:
+  Example:
+    short: c
+timecards_round: 5
+foo: bar

@@ -1,0 +1,2 @@
+2025-09-08 09:00 | start
+2025-09-08 09:19 | Example | Test task | Some notes

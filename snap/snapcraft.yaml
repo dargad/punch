@@ -106,6 +106,8 @@ parts:
       execstack --clear-execstack $SNAPCRAFT_PART_INSTALL/playwright-browsers/firefox-1490/firefox/libonnxruntime.so
       # fi
       install -m755 punch-completion.bash $SNAPCRAFT_PART_INSTALL/bin/punch-completer
+      install -D -m644 "$CRAFT_PART_SRC/CHANGELOG.md" \
+        "$CRAFT_PART_INSTALL/usr/share/punch/CHANGELOG.md"
 
 # Notes:
 # - This snap uses Poetry for dependency management and builds the wheel.
