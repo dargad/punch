@@ -1,6 +1,6 @@
 # Changelog:
 
-## 0.2.9
+## 0.3.0
 * Port to Typer instead of argparse.
 * Added help command.
 * Teaser after updates encouraging to see `whats-new`.
