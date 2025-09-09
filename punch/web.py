@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-import locale
 import os
 import time
 from playwright.sync_api import sync_playwright, Error as playwright_error
@@ -331,11 +330,8 @@ def _fill_single_entry(config, page, timecard_entry, interactive):
     _fill_description(page, timecard_entry.work_performed)
     _fill_duration(page, str(timecard_entry.minutes))
 
-    locale.setlocale(locale.LC_TIME, '')
-    format = config.get("date_format", "%x")
-    date = timecard_entry.start_date.strftime(format)
+    date = timecard_entry.start_date.strftime(config.get("date_format", "%d/%m/%Y"))
     _fill_date(page, date)
-    
     time_str = timecard_entry.start_time.strftime("%H:%M")
     _fill_time(page, time_str)
 
