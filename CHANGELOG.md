@@ -4,6 +4,7 @@
 * Port to Typer instead of argparse.
 * Added help command.
 * Teaser after updates encouraging to see `whats-new`.
+* --time option available for `punch add`
 
 ## 0.2.8
 * Fixed version reporting (was hardcoded to 0.1.3).
