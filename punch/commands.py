@@ -191,9 +191,6 @@ def run_config_wizard(config, config_path):
 
 def handle_start(args, tasks_file):
     start_dt = None
-    if args.time:
-        now = datetime.now()
-        start_dt = datetime.combine(now.date(), args.time)
     write_task(tasks_file, "", "start", "", start_dt)
 
 def handle_help(parser):
