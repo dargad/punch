@@ -12,7 +12,7 @@ import dateparser
 import yaml
 from rich.console import Console
 
-from punch.commands import handle_add, handle_export, handle_help, handle_login, handle_report, handle_start, handle_submit
+from punch.commands import handle_add, handle_export, handle_help, handle_login, handle_report, handle_start, handle_submit, time_to_current_datetime
 from punch.config import get_config_path, get_tasks_file, load_config
 from punch.tasks import get_recent_tasks, write_task
 from punch import __version__, _DISTRIBUTION
@@ -179,10 +179,12 @@ def start(
     Mark the start of your day.
     """
     tasks_file = get_tasks_file()
-    handle_start(SimpleNamespace(time=datetime.strptime(time, "%H:%M").time() if time else None, verbose=verbose), tasks_file)
+    
+    handle_start(SimpleNamespace(time=time_to_current_datetime(time) if time else None, verbose=verbose), tasks_file)
 
 @app.command()
 def add(
+    time: str = typer.Option(None, "-t", "--time", help="Specify the start time (HH:MM)"),
     task_args: list[str] = typer.Argument(..., help="Category, colon, task, and optional notes (e.g. c : Task name : Notes)"),
     verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable verbose output"),
 ):
@@ -193,7 +195,14 @@ def add(
     categories = config.get('categories', {})
     tasks_file = get_tasks_file()
     console = Console()
-    handle_add(SimpleNamespace(task_args=task_args, verbose=verbose), categories, tasks_file, console)
+
+    handle_add(
+        SimpleNamespace(task_args=task_args, verbose=verbose,
+                        time=time_to_current_datetime(time) if time else None),
+        categories,
+        tasks_file,
+        console
+    )
 
 def resolve_date_range(day: Optional[str], from_date: Optional[str], to_date: Optional[str], ctx_name: str = "report"):
     """

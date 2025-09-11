@@ -14,6 +14,13 @@ from punch.report import generate_report
 from punch.tasks import parse_new_task_string, write_task
 from punch.web import DRY_RUN_SUFFIX, AuthFileNotFoundError, MissingTimecardsUrl, NoCaseMappingError, get_timecards, login_to_site, submit_timecards
 
+    
+def time_to_current_datetime(time_str: str) -> datetime:
+    """Combine the current date with a given time string (HH:MM) to produce a datetime."""
+    now = datetime.now()
+    t = datetime.strptime(time_str, "%H:%M").time()
+    return datetime.combine(now.date(), t)
+
 def escape_separators(s):
     """
     Escapes colons in the input string to avoid splitting on them,
@@ -193,11 +200,14 @@ def handle_help(parser):
     parser.print_help()
 
 def handle_add(args, categories, tasks_file, console):
-    quick_task = sys.argv[2:]
-    task_str = " ".join([escape_separators(s) for s in quick_task])
+    task_str = " ".join([escape_separators(s) for s in args.task_args])
+    time = args.time
+
+    print("time:", time)
+
     try:
         task = parse_new_task_string(task_str, categories)
-        write_task(tasks_file, task.category, task.task, task.notes)
+        write_task(tasks_file, task.category, task.task, task.notes, time)
         print(f"Logged: {task.category} : {task.task} : {task.notes}")
     except ValueError as e:
         console.print(f"Error: {e}")
