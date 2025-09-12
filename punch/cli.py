@@ -12,7 +12,7 @@ import dateparser
 import yaml
 from rich.console import Console
 
-from punch.commands import handle_add, handle_export, handle_help, handle_login, handle_report, handle_start, handle_submit, time_to_current_datetime
+from punch.commands import escape_separators, get_category_by_short, handle_add, handle_export, handle_help, handle_login, handle_report, handle_start, handle_submit, time_to_current_datetime
 from punch.config import get_config_path, get_tasks_file, load_config
 from punch.tasks import get_recent_tasks, write_task
 from punch import __version__, _DISTRIBUTION
@@ -68,7 +68,7 @@ def select_from_list(console, items, prompt, style="bold yellow"):
         console.print("Invalid input. Please enter a number.", style="bold red")
         return None
 
-def interactive_mode(categories, tasks_file):
+def interactive_mode(categories, tasks_file, selected_category=None):
     console = Console()
     if isinstance(categories, dict):
         category_list = list(categories.keys())
@@ -76,10 +76,12 @@ def interactive_mode(categories, tasks_file):
         category_list = categories
 
     console.print("Interactive mode", style="bold green")
-    console.print("Available categories:", style="bold blue")
-    selected_category = select_from_list(console, category_list, "Select a category by number: ")
-    if selected_category is None:
-        return
+
+    if not selected_category in category_list:
+        console.print("Available categories:", style="bold blue")
+        selected_category = select_from_list(console, category_list, "Select a category by number: ")
+        if selected_category is None:
+            return
 
     tasks = get_recent_tasks(tasks_file, selected_category)
     task_names = [task.task for task in tasks]
@@ -196,13 +198,20 @@ def add(
     tasks_file = get_tasks_file()
     console = Console()
 
-    handle_add(
-        SimpleNamespace(task_args=task_args, verbose=verbose,
-                        time=time_to_current_datetime(time) if time else None),
-        categories,
-        tasks_file,
-        console
-    )
+    task_str = " ".join([escape_separators(s) for s in task_args])
+
+    name, cat = get_category_by_short(categories, task_str)
+    if cat:
+        print(name, cat)
+        interactive_mode(categories, tasks_file, name)
+    else:
+        handle_add(
+            SimpleNamespace(task_str=task_str, verbose=verbose,
+                            time=time_to_current_datetime(time) if time else None),
+            categories,
+            tasks_file,
+            console
+        )
 
 def resolve_date_range(day: Optional[str], from_date: Optional[str], to_date: Optional[str], ctx_name: str = "report"):
     """

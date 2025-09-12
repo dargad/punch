@@ -12,6 +12,7 @@ class TaskEntry:
     duration: datetime.timedelta
 
 SEPARATOR = '|'
+CMDLINE_SEPARATOR = ':'
 
 def read_tasklog(taskfile, count_lines=False):
     """
