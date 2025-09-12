@@ -200,7 +200,7 @@ def get_category_by_short(categories, arg_str):
     for cat in categories:
         if categories[cat]['short'] == arg_str:
             return cat, categories[cat]
-    return None
+    raise ValueError(f"Category short code '{arg_str}' not found in config.")
 
 def handle_add(args, categories, tasks_file, console):
     task_str = args.task_str

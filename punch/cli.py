@@ -14,7 +14,7 @@ from rich.console import Console
 
 from punch.commands import escape_separators, get_category_by_short, handle_add, handle_export, handle_help, handle_login, handle_report, handle_start, handle_submit, time_to_current_datetime
 from punch.config import get_config_path, get_tasks_file, load_config
-from punch.tasks import get_recent_tasks, write_task
+from punch.tasks import CMDLINE_SEPARATOR, get_recent_tasks, write_task
 from punch import __version__, _DISTRIBUTION
 
 app = typer.Typer(help="punch - a CLI tool for managing your tasks")
@@ -200,17 +200,17 @@ def add(
 
     task_str = " ".join([escape_separators(s) for s in task_args])
 
-    name, cat = get_category_by_short(categories, task_str)
-    if cat:
-        print(name, cat)
-        interactive_mode(categories, tasks_file, name)
-    else:
-        handle_add(
-            SimpleNamespace(task_str=task_str, verbose=verbose,
-                            time=time_to_current_datetime(time) if time else None),
-            categories,
-            tasks_file,
-            console
+    if CMDLINE_SEPARATOR not in task_str:
+        name, cat = get_category_by_short(categories, task_str)
+        if cat:
+            interactive_mode(categories, tasks_file, name)
+
+    handle_add(
+        SimpleNamespace(task_str=task_str, verbose=verbose,
+                        time=time_to_current_datetime(time) if time else None),
+        categories,
+        tasks_file,
+        console
         )
 
 def resolve_date_range(day: Optional[str], from_date: Optional[str], to_date: Optional[str], ctx_name: str = "report"):

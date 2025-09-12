@@ -2,6 +2,7 @@
 # filepath: scripts/test_all_cli_options.sh
 
 set -e
+set -x
 
 PUNCH="python -m punch.cli"
 TASKS_FILE="test_tasks.txt"
