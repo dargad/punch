@@ -187,7 +187,7 @@ def start(
 @app.command()
 def add(
     time: str = typer.Option(None, "-t", "--time", help="Specify the start time (HH:MM)"),
-    task_args: list[str] = typer.Argument(..., help="Category, colon, task, and optional notes (e.g. c : Task name : Notes)"),
+    task_args: list[str] = typer.Argument(..., help="<category> : <task> [: <notes>] (e.g. c : Task name : Notes)"),
     verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable verbose output"),
 ):
     """
