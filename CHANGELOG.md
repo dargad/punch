@@ -1,5 +1,8 @@
 # Changelog:
 
+## 0.3.1
+* Fix --from and --to handling under Typer.
+
 ## 0.3.0
 * Port to Typer instead of argparse.
 * Added help command.
