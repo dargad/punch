@@ -242,8 +242,9 @@ def resolve_date_range(day: Optional[str], from_date: Optional[str], to_date: Op
         from_obj = to_obj = day_obj
     elif from_obj and not to_obj:
         to_obj = date.today()
-    else:
-        day = from_obj = to_obj = date.today()
+    
+    if not day_obj and not from_obj and not to_obj:
+        day_obj = from_obj = to_obj = date.today()
 
     return day_obj, from_obj, to_obj
 
