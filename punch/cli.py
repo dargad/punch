@@ -201,9 +201,13 @@ def add(
     task_str = " ".join([escape_separators(s) for s in task_args])
 
     if CMDLINE_SEPARATOR not in task_str:
-        name, cat = get_category_by_short(categories, task_str)
-        if cat:
-            interactive_mode(categories, tasks_file, name)
+        try:
+            name, cat = get_category_by_short(categories, task_str)
+            if cat:
+                interactive_mode(categories, tasks_file, name)
+        except ValueError:
+            # not a short category, potentially an "uncategorized" task
+            pass
 
     handle_add(
         SimpleNamespace(task_str=task_str, verbose=verbose,

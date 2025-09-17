@@ -11,13 +11,14 @@ packages = [{ include = "punch" }]
 include = ["CHANGELOG.md"]
 
 [tool.poetry.dependencies]
-python = ">=3.8"
+python = ">=3.9"
 rich = ">=13.0.0"
 pyyaml = ">=6.0"
 playwright = ">=1.40.0"
 ruamel-yaml = "^0.18.12"
 dateparser = "^1.2.2"
 typer = "^0.17.4"
+coverage = "^7.10.6"
 
 [tool.poetry.scripts]
 punch = "punch.cli:app"
