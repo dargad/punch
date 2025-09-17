@@ -1,5 +1,8 @@
 # Changelog:
 
+## 0.3.3
+* Fixed interactive task adding.
+
 ## 0.3.2
 * Fixed adding uncategorized tasks.
 
