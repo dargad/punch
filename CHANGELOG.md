@@ -1,5 +1,8 @@
 # Changelog:
 
+## 0.3.2
+* Fixed adding uncategorized tasks.
+
 ## 0.3.1
 * Fix --from and --to handling under Typer.
 
