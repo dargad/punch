@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import os
+import re
 import sys
 from rich.console import Console
 from rich.tree import Tree
@@ -20,16 +21,6 @@ def time_to_current_datetime(time_str: str) -> datetime:
     now = datetime.now()
     t = datetime.strptime(time_str, "%H:%M").time()
     return datetime.combine(now.date(), t)
-
-def escape_separators(s):
-    """
-    Escapes colons in the input string to avoid splitting on them,
-    but only if the colon is not the first or last character.
-    """
-    if len(s) <= 2:
-        return s
-    # Replace ":" with "\:" only if not at the start or end
-    return s[0] + s[1:-1].replace(":", r"\:") + s[-1]
 
 def show_config(config):
     """
@@ -200,7 +191,7 @@ def get_category_by_short(categories, arg_str):
     for cat in categories:
         if categories[cat]['short'] == arg_str:
             return cat, categories[cat]
-    raise ValueError(f"Category short code '{arg_str}' not found in config.")
+    return None, None
 
 def handle_add(args, categories, tasks_file, console):
     task_str = args.task_str

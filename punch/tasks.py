@@ -14,6 +14,23 @@ class TaskEntry:
 SEPARATOR = '|'
 CMDLINE_SEPARATOR = ':'
 
+def escape_separators(s, sep=CMDLINE_SEPARATOR):
+    """
+    Escapes colons in the input string to avoid splitting on them,
+    but only if the colon is not the first or last character.
+    """
+    if len(s) <= 2:
+        return s
+    # Replace ":" with "\:" only if not at the start or end
+    return s[0] + s[1:-1].replace(sep, rf"\{sep}") + s[-1]
+
+def split_unescaped(s: str, sep: str) -> list[str]:
+    # Pattern: separator not preceded by an odd number of backslashes
+    pattern = rf'(?<!\\){sep}'
+    parts = re.split(pattern, s)
+    # Replace escaped separators (e.g. "\,") with the literal separator
+    return [p.replace(f'\\{sep}', sep) for p in parts]
+
 def read_tasklog(taskfile, count_lines=False):
     """
     Reads the task log from a file and returns a list of TaskEntry objects.
@@ -123,27 +140,30 @@ def parse_new_task_string(task_string, categories):
     """
     finish = datetime.datetime.now()
     duration = datetime.timedelta(0)
-
     stripped = task_string.strip()
-    # If the string ends with * or **, treat as category-less task (keep * or ** in the task)
+
+    # Handle category-less tasks ending with *
     if stripped.endswith("*"):
-        # Split notes if present (by " : ")
-        if " : " in stripped:
-            task, notes = stripped.rsplit(" : ", 1)
-        else:
-            task, notes = stripped, ""
-        return TaskEntry(finish, "", task, notes, duration)
+        parts = split_unescaped(stripped, CMDLINE_SEPARATOR)
+        match parts:
+            case [task]:
+                return TaskEntry(finish, "", task, "", duration)
+            case [task, notes]:
+                return TaskEntry(finish, "", task, notes, duration)
+            case _:
+                raise ValueError("Invalid format for category-less task ending with '*'")
 
     # Otherwise, expect <short-category> : <task-name> [: <task-notes>]
-    # Split only on unescaped colons
-    parts = [part.strip() for part in re.split(r'(?<!\\):', task_string, maxsplit=2)]
-    # Unescape any escaped colons and separators in all parts
-    parts = [p.replace(r'\:', ':').replace(f"\\{SEPARATOR}", SEPARATOR) for p in parts]
-    if len(parts) < 2:
-        raise ValueError("Task string must be in the format '<short-category> : <task-name> [: <task-notes>]' or end with '*' for category-less tasks")
-    input_category = parts[0]
-    task = parts[1]
-    notes = parts[2] if len(parts) == 3 else ""
+    parts = split_unescaped(task_string, CMDLINE_SEPARATOR)
+    parts = [p.replace(r'\:', ':').replace(f"\\{SEPARATOR}", SEPARATOR).strip() for p in parts]
+
+    match parts:
+        case [input_category, task]:
+            notes = ""
+        case [input_category, task, notes]:
+            pass
+        case _:
+            raise ValueError("Task string must be in the format '<short-category> : <task-name> [: <task-notes>]' or end with '*' for category-less tasks")
 
     # Build a mapping from short symbol to full category name
     short_to_full = {v['short']: k for k, v in categories.items() if 'short' in v}
