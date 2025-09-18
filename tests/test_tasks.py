@@ -2,7 +2,7 @@ import unittest
 import tempfile
 import os
 import datetime
-from punch.tasks import TaskEntry, read_tasklog, parse_task, SEPARATOR, parse_new_task_string
+from punch.tasks import TaskEntry, escape_separators, read_tasklog, parse_task, SEPARATOR, parse_new_task_string
 
 CATEGORIES = {
     "Coding": {"short": "c", "caseid": "100"},
@@ -89,7 +89,6 @@ class TestTasks(unittest.TestCase):
             parse_new_task_string("", CATEGORIES)
 
     def test_escape_separators(self):
-        from punch.commands import escape_separators
         self.assertEqual(escape_separators("foo:bar"), "foo\\:bar")
         self.assertEqual(escape_separators(":bar"), ":bar")
         self.assertEqual(escape_separators("foo:"), "foo:")
