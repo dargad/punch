@@ -206,17 +206,16 @@ def add(
             if cat:
                 interactive_mode(categories, tasks_file, name)
                 return
-        except ValueError:
-            # not a short category, potentially an "uncategorized" task
+        except ValueError as e:
             pass
-    else:
-        handle_add(
-            SimpleNamespace(task_str=task_str, verbose=verbose,
-                            time=time_to_current_datetime(time) if time else None),
-            categories,
-            tasks_file,
-            console
-            )
+
+    handle_add(
+        SimpleNamespace(task_str=task_str, verbose=verbose,
+                        time=time_to_current_datetime(time) if time else None),
+        categories,
+        tasks_file,
+        console
+   )
 
 def resolve_date_range(day: Optional[str], from_date: Optional[str], to_date: Optional[str], ctx_name: str = "report"):
     """
