@@ -181,7 +181,7 @@ def run_config_wizard(config, config_path):
     console.print(f"[bold green]Configuration saved to {config_path}[/bold green]")
 
 def handle_start(args, tasks_file):
-    start_dt = None
+    start_dt = args.time
     write_task(tasks_file, "", "start", "", start_dt)
 
 def handle_help(parser):
