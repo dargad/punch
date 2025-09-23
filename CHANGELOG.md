@@ -2,6 +2,9 @@
 
 ## 0.3.3
 * Fixed interactive task adding.
+* Fixed `--time` option for `start`.
+* Added `--time` argument for `add`.
+* Daily builds available as `edge` snaps.
 
 ## 0.3.2
 * Fixed adding uncategorized tasks.
