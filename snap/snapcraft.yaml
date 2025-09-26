@@ -1,6 +1,5 @@
 name: punch
 base: core22
-version: '0.3.3'
 summary: CLI tool for tracking, reporting, and submitting your work tasks and timecards
 description: |
   Punch is a command-line tool for tracking, reporting, and submitting your work tasks and timecards.
@@ -24,6 +23,8 @@ apps:
       - wayland
     environment:
       PLAYWRIGHT_BROWSERS_PATH: $SNAP/playwright-browsers
+
+adopt-info: punch
 
 parts:
   punch:
@@ -98,6 +99,24 @@ parts:
       - libdbusmenu-gtk3-4
       - libsecret-1-0
       - libnotify4
+    override-pull: |
+      set -euo pipefail
+      craftctl default
+
+      git fetch --tags --force >/dev/null 2>&1 || true
+
+      if tag=$(git describe --tags --exact-match 2>/dev/null); then
+        # Strip leading "v"
+        version="${tag#v}"
+      else
+        latest_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+        latest_tag="${latest_tag#v}"
+        ts=$(date -u -d "@$(git log -1 --format=%ct)" +%Y%m%d%H%M%S)
+        hash=$(git rev-parse --short=7 HEAD)
+        version="${latest_tag}+${ts}.${hash}"
+      fi
+
+      craftctl set version="$version"
     override-build: |
       craftctl default
       export PLAYWRIGHT_BROWSERS_PATH=$SNAPCRAFT_PART_INSTALL/playwright-browsers
