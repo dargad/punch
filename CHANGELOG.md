@@ -1,5 +1,9 @@
 # Changelog:
 
+## 0.3.4
+* Partial matching of human readable dates
+  (e.g. `punch report -d yes` matches yesterday)
+
 ## 0.3.3
 * Fixed interactive task adding.
 * Fixed `--time` option for `start`.
