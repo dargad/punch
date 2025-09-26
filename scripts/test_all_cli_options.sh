@@ -23,7 +23,7 @@ export XDG_CONFIG_HOME=$(pwd)
 export XDG_DATA_HOME=$(pwd)
 
 # 1. Test: start command with time
-$PUNCH start -t 09:00
+$PUNCH start -t 00:01
 
 # 2. Test: add command
 $PUNCH add c : "Test task" : "Some notes"
