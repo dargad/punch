@@ -7,6 +7,7 @@ from pathlib import Path
 import sys
 from types import SimpleNamespace
 from typing import Optional
+from unittest import result
 import typer
 import dateparser
 import yaml
@@ -21,9 +22,27 @@ app = typer.Typer(help="punch - a CLI tool for managing your tasks")
 config_app = typer.Typer(help="Manage configuration options.")
 app.add_typer(config_app, name="config")
 
+HUMAN_DATE_SHORTCUTS = ["today", "yesterday", "tomorrow", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+
+def find_matching_in_shortcuts(value: str) -> str:
+    result = []
+    value_lower = value.lower()
+    for shortcut in HUMAN_DATE_SHORTCUTS:
+        if shortcut.startswith(value_lower):
+            result.append(shortcut)
+
+    if len(result) > 1:
+        raise typer.BadParameter(f"Ambiguous date shortcut: {value!r} matches {', '.join(result)}")
+    
+    return result[0] if result else None
+
 def check_human_date(value: str) -> str:
     if not value:
         return ""
+    
+    mapping = find_matching_in_shortcuts(value)
+    
+    value = mapping if mapping else value
     try:
         dt = dateparser.parse(value)
         if dt is None:
