@@ -107,7 +107,7 @@ parts:
       else
         latest_tag=$(git describe --tags --abbrev=0)
         latest_tag="${latest_tag#v}"
-        ts=$(git log -1 --format=%ct)
+        ts=$(date -u -d "@$(git log -1 --format=%ct)" +%y%m%d%H%M%S)
         hash=$(git rev-parse --short HEAD)
         version="${latest_tag}+${ts}.${hash}"
       fi
