@@ -99,3 +99,7 @@ MIT
 ---
 
 For more details, see the [CHANGELOG](CHANGELOG.md) or run `punch whats-new`.
+
+[![Build Snap package](https://github.com/dargad/punch/actions/workflows/build-snap.yml/badge.svg)](https://github.com/dargad/punch/actions/workflows/build-snap.yml)
+[![Run Python unit tests](https://github.com/dargad/punch/actions/workflows/python-unittests.yml/badge.svg)](https://github.com/dargad/punch/actions/workflows/python-unittests.yml)
+[![Test All CLI Options](https://github.com/dargad/punch/actions/workflows/sanity-check.yml/badge.svg)](https://github.com/dargad/punch/actions/workflows/sanity-check.yml)
