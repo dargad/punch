@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import os
+from pathlib import Path
 import time
 from playwright.sync_api import sync_playwright, Error as playwright_error
 from punch.tasks import read_tasklog
@@ -195,10 +196,15 @@ def submit_timecards(config, timecards, headless=True, interactive=False, dry_ru
         return
 
     auth_json_path = get_auth_json_path()
+
+    if not Path(auth_json_path).exists():
+        console.print("[red]No authentication found. Trying to login.[/red]")
+        login_to_site(config, verbose)
+
     suffix = DRY_RUN_SUFFIX if dry_run else ""
     with sync_playwright() as p:
         browser = p.firefox.launch(headless=headless)
-        context = _get_browser_context(browser, auth_json_path)
+        context = _get_browser_context(browser, auth_json_path if Path(auth_json_path).exists() else None)
         if context is None:
             return
 

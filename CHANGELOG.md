@@ -3,6 +3,8 @@
 ## 0.3.4
 * Partial matching of human readable dates
   (e.g. `punch report -d yes` matches yesterday)
+* Introduce new config option: 'time_format' to specify preferred time format
+  (12h/24h) for parsing and displaying times.
 
 ## 0.3.3
 * Fixed interactive task adding.
