@@ -114,6 +114,9 @@ def run_config_wizard(config, config_path):
     date_format = config.get("date_format", "%d/%m/%Y")
     config["date_format"] = prompt_with_hint(console, "Enter the timecard date format", date_format)
 
+    time_format = config.get("time_format", "%H:%M")
+    config["time_format"] = prompt_with_hint(console, "Enter the timecard time format", time_format)
+
     # Timecards rounding
     current_round = config.get("timecards_round", 0)
     while True:

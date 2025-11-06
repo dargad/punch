@@ -332,7 +332,7 @@ def _fill_single_entry(config, page, timecard_entry, interactive):
 
     date = timecard_entry.start_date.strftime(config.get("date_format", "%d/%m/%Y"))
     _fill_date(page, date)
-    time_str = timecard_entry.start_time.strftime("%H:%M")
+    time_str = timecard_entry.start_time.strftime(config.get("time_format", "%H:%M"))
     _fill_time(page, time_str)
 
 def _save_and_new(page):
