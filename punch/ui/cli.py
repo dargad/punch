@@ -24,7 +24,7 @@ app.add_typer(config_app, name="config")
 
 HUMAN_DATE_SHORTCUTS = ["today", "yesterday", "tomorrow", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 
-def find_matching_in_shortcuts(value: str) -> str:
+def find_matching_in_shortcuts(value: str) -> Optional[str]:
     result = []
     value_lower = value.lower()
     for shortcut in HUMAN_DATE_SHORTCUTS:
