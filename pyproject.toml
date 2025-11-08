@@ -21,7 +21,7 @@ typer = "^0.17.4"
 coverage = "^7.10.6"
 
 [tool.poetry.scripts]
-punch = "punch.cli:app"
+punch = "punch.ui.cli:app"
 
 [build-system]
 requires = ["poetry-core>=1.5.0"]
