@@ -111,7 +111,7 @@ import subprocess
 class TestTyperCLI(unittest.TestCase):
     def test_report_help(self):
         result = subprocess.run(
-            ["python", "-m", "punch.cli", "report", "--help"],
+            ["python", "-m", "punch.ui.cli", "report", "--help"],
             capture_output=True, text=True
         )
         self.assertIn("Usage", result.stdout)
@@ -119,7 +119,7 @@ class TestTyperCLI(unittest.TestCase):
 
     def test_start_help(self):
         result = subprocess.run(
-            ["python", "-m", "punch.cli", "start", "--help"],
+            ["python", "-m", "punch.ui.cli", "start", "--help"],
             capture_output=True, text=True
         )
         self.assertIn("Usage", result.stdout)
@@ -127,7 +127,7 @@ class TestTyperCLI(unittest.TestCase):
 
     def test_config_show_help(self):
         result = subprocess.run(
-            ["python", "-m", "punch.cli", "config", "show", "--help"],
+            ["python", "-m", "punch.ui.cli", "config", "show", "--help"],
             capture_output=True, text=True
         )
         self.assertIn("Usage", result.stdout)
@@ -135,7 +135,7 @@ class TestTyperCLI(unittest.TestCase):
 
     def test_cli_global_help(self):
         result = subprocess.run(
-            ["python", "-m", "punch.cli", "--help"],
+            ["python", "-m", "punch.ui.cli", "--help"],
             capture_output=True, text=True
         )
         self.assertIn("Usage", result.stdout)

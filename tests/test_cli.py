@@ -1,6 +1,6 @@
 import unittest
 from datetime import date, timedelta
-from punch.cli import resolve_date_range
+from punch.ui.cli import resolve_date_range
 import typer
 
 class TestResolveDateRange(unittest.TestCase):
