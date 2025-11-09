@@ -16,6 +16,7 @@ from rich.console import Console
 from punch.commands import get_category_by_short, handle_add, handle_export, handle_help, handle_login, handle_report, handle_start, handle_submit, time_to_current_datetime
 from punch.config import get_config_path, get_tasks_file, load_config
 from punch.tasks import CMDLINE_SEPARATOR, escape_separators, get_recent_tasks, split_unescaped, write_task
+from punch.ui.interactive import run_interactive_mode
 from punch import __version__, _DISTRIBUTION
 
 app = typer.Typer(help="punch - a CLI tool for managing your tasks")
@@ -24,7 +25,7 @@ app.add_typer(config_app, name="config")
 
 HUMAN_DATE_SHORTCUTS = ["today", "yesterday", "tomorrow", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
 
-def find_matching_in_shortcuts(value: str) -> str:
+def find_matching_in_shortcuts(value: str) -> Optional[str]:
     result = []
     value_lower = value.lower()
     for shortcut in HUMAN_DATE_SHORTCUTS:
@@ -88,39 +89,8 @@ def select_from_list(console, items, prompt, style="bold yellow"):
         return None
 
 def interactive_mode(categories, tasks_file, selected_category=None):
-    console = Console()
-    if isinstance(categories, dict):
-        category_list = list(categories.keys())
-    else:
-        category_list = categories
-
-    console.print("Interactive mode", style="bold green")
-
-    if not selected_category in category_list:
-        console.print("Available categories:", style="bold blue")
-        selected_category = select_from_list(console, category_list, "Select a category by number: ")
-        if selected_category is None:
-            return
-
-    tasks = get_recent_tasks(tasks_file, selected_category)
-    task_names = [task.task for task in tasks]
-    console.print(f"Recent tasks in {selected_category}:", style="bold blue")
-    selected_task = select_from_list(
-        console,
-        task_names + ["New task"],
-        "Select a task by number: "
-    )
-    if selected_task is None:
-        return
-
-    if selected_task == "New task":
-        task_name = console.input("Enter new task name: ")
-    else:
-        task_name = selected_task
-
-    notes = console.input("Enter notes (optional): ")
-    write_task(tasks_file, selected_category, task_name, notes)
-    console.print(f"Logged: {selected_category} : {task_name} : {notes}", style="bold green")
+    """Launch the interactive Textual interface for task entry."""
+    run_interactive_mode(categories, tasks_file, selected_category)
 
 def read_changelog() -> str:
     snap = os.getenv("SNAP")

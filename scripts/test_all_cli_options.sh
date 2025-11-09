@@ -4,7 +4,7 @@
 set -e
 set -x
 
-PUNCH="python -m punch.cli"
+PUNCH="python -m punch.ui.cli"
 TASKS_FILE="test_tasks.txt"
 CONFIG_FILE="test_config.yaml"
 
