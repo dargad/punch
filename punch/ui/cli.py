@@ -1,3 +1,4 @@
+from ast import Interactive
 from datetime import date, datetime
 from importlib.metadata import version
 from importlib.resources import files
@@ -6,8 +7,9 @@ import os
 from pathlib import Path
 import sys
 from types import SimpleNamespace
-from typing import Optional
+from typing import Annotated, Optional
 from unittest import result
+from rich.repr import RichReprResult
 import typer
 import dateparser
 import yaml
@@ -15,7 +17,7 @@ from rich.console import Console
 
 from punch.commands import get_category_by_short, handle_add, handle_export, handle_help, handle_login, handle_report, handle_start, handle_submit, time_to_current_datetime
 from punch.config import get_config_path, get_tasks_file, load_config
-from punch.tasks import CMDLINE_SEPARATOR, escape_separators, get_recent_tasks, split_unescaped, write_task
+from punch.tasks import CMDLINE_SEPARATOR, escape_separators, get_recent_tasks, parse_new_task_string, split_unescaped, write_task
 from punch.ui.interactive import run_interactive_mode
 from punch import __version__, _DISTRIBUTION
 
@@ -90,7 +92,10 @@ def select_from_list(console, items, prompt, style="bold yellow"):
 
 def interactive_mode(categories, tasks_file, selected_category=None):
     """Launch the interactive Textual interface for task entry."""
-    run_interactive_mode(categories, tasks_file, selected_category)
+    task = run_interactive_mode(categories, tasks_file, selected_category)
+    if task is None:
+        raise typer.Exit(1)
+    return task
 
 def read_changelog() -> str:
     snap = os.getenv("SNAP")
@@ -139,7 +144,7 @@ def show_teaser(cv: str):
     typer.secho(f"🔹 New version: {cv}. Try '{_DISTRIBUTION} whats-new' to read more.", dim=True)
 
 @app.callback(invoke_without_command=True)
-def main_callback(ctx: typer.Context):
+def main_callback(ctx: typer.Context ):
     """
     punch - a CLI tool for managing your tasks
     """
@@ -153,13 +158,10 @@ def main_callback(ctx: typer.Context):
         os.makedirs(os.path.dirname(config_path), exist_ok=True)
         with open(config_path, "w") as f:
             f.write("categories: []\n")
-    config = load_config(config_path)
-    tasks_file = get_tasks_file()
-    categories = config.get('categories', [])
 
     if ctx.invoked_subcommand is None:
-        interactive_mode(categories, tasks_file)
-        raise typer.Exit()
+        ctx.invoke(add)
+                
 
 @app.command()
 def start(
@@ -175,9 +177,9 @@ def start(
 
 @app.command()
 def add(
-    time: str = typer.Option(None, "-t", "--time", help="Specify the start time (HH:MM)"),
-    task_args: list[str] = typer.Argument(..., help="<category> : <task> [: <notes>] (e.g. c : Task name : Notes)"),
-    verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable verbose output"),
+    time: Annotated[str | None, typer.Option("-t", "--time", help="Specify the start time (HH:MM)")] = None,
+    task_args: Annotated[list[str] | None, typer.Argument(help="<category> : <task> [: <notes>] (e.g. c : Task name : Notes)")] = None,
+    verbose: Annotated[bool, typer.Option("-v", "--verbose", help="Enable verbose output")] = False,
 ):
     """
     Add a new task.
@@ -185,33 +187,45 @@ def add(
     config = load_config(get_config_path())
     categories = config.get('categories', {})
     tasks_file = get_tasks_file()
+    
+    print(time)
+    
+    if task_args:
+        task_str = " ".join([escape_separators(s) for s in task_args])
+    else:
+        task_str = ""
+        
     console = Console()
+    
+    if task_args is None:
+        task = interactive_mode(categories, tasks_file)
+    elif (cn := resolve_category(task_str, categories, console)) is not None:
+        _, name = cn
+        task = interactive_mode(categories, tasks_file, name)
+    else:
+        task = parse_new_task_string(task_str, categories)
+        
+    if time:
+        task.finish = time_to_current_datetime(time)
+        
+    handle_add(
+        SimpleNamespace(verbose=verbose),
+        task,
+        tasks_file,
+        console
+    )
 
-    task_str = " ".join([escape_separators(s) for s in task_args])
 
+def resolve_category(task_str, categories, console):
     match split_unescaped(task_str, CMDLINE_SEPARATOR):
-        case [cat, task, *notes] if cat and task:
-                handle_add(
-                    SimpleNamespace(task_str=task_str, verbose=verbose,
-                                    time=time_to_current_datetime(time) if time else None),
-                    categories,
-                    tasks_file,
-                    console
-                )
         case [cat]:
-            name, cat = get_category_by_short(categories, cat)
-            if cat:
-                interactive_mode(categories, tasks_file, name)
-                return
-            else:
-                handle_add(
-                    SimpleNamespace(task_str=task_str, verbose=verbose,
-                                    time=time_to_current_datetime(time) if time else None),
-                    categories,
-                    tasks_file,
-                    console
-                )
-
+            name, cat_full = get_category_by_short(categories, cat)
+            if cat_full:
+                return cat_full, name
+            console.print(f"Category '{cat}' not found.")
+            raise typer.Exit(code=1)
+                
+                    
 
 def resolve_date_range(day: Optional[str], from_date: Optional[str], to_date: Optional[str], ctx_name: str = "report"):
     """
