@@ -12,7 +12,7 @@ from playwright.sync_api import TimeoutError
 from punch.config import set_config_value
 from punch.export import export_csv, export_json
 from punch.report import generate_report
-from punch.tasks import CMDLINE_SEPARATOR, parse_new_task_string, write_task
+from punch.tasks import CMDLINE_SEPARATOR, TaskEntry, parse_new_task_string, write_task
 from punch.web import DRY_RUN_SUFFIX, AuthFileNotFoundError, MissingTimecardsUrl, NoCaseMappingError, get_timecards, login_to_site, submit_timecards
 
     
@@ -196,16 +196,12 @@ def get_category_by_short(categories, arg_str):
             return cat, categories[cat]
     return None, None
 
-def handle_add(args, categories, tasks_file, console):
-    task_str = args.task_str
-    time = args.time
-
+def handle_add(_args, task: TaskEntry, tasks_file, console):
     try:
-        task = parse_new_task_string(task_str, categories)
-        write_task(tasks_file, task.category, task.task, task.notes, time)
-        print(f"Logged: {task.category} : {task.task} : {task.notes}")
+        write_task(tasks_file, task.category, task.task, task.notes, task.finish)
+        console.print(f"✓ Task logged: {task.category} : {task.task} : {task.notes}", style="bold green")
     except ValueError as e:
-        console.print(f"Error: {e}")
+        console.print(f"✗ Error saving task: {e}", style="bold red")
         sys.exit(1)
 
 def print_report(report):

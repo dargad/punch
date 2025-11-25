@@ -1,5 +1,6 @@
 """Textual-based interactive mode for Punch task management."""
 
+import datetime
 from typing import Optional
 from textual.app import App, ComposeResult
 from textual.containers import Vertical, Horizontal
@@ -7,7 +8,7 @@ from textual.widgets import Header, Footer, Button, Static, ListItem, ListView, 
 from textual.screen import ModalScreen
 from rich.console import Console
 
-from punch.tasks import get_recent_tasks, write_task
+from punch.tasks import TaskEntry, get_recent_tasks, write_task
 
 
 class NewTaskScreen(ModalScreen):
@@ -112,7 +113,7 @@ class NotesInputScreen(ModalScreen):
         self.dismiss((self.category, self.task_name, self.notes))
 
 
-class InteractiveApp(App):
+class InteractiveApp(App[TaskEntry]):
     """A Textual app for interactive task management."""
     
     CSS = """
@@ -276,16 +277,7 @@ class InteractiveApp(App):
     def on_notes_result(self, result) -> None:
         if result:
             category, task, notes = result
-            try:
-                write_task(self.tasks_file, category, task, notes)
-                # Show success message and exit
-                console = Console()
-                console.print(f"✓ Task logged: {category} : {task} : {notes}", style="bold green")
-                self.exit()
-            except Exception as e:
-                console = Console()
-                console.print(f"✗ Error saving task: {e}", style="bold red")
-                self.exit()
+            self.exit(TaskEntry(datetime.datetime.now(), category, task, notes, datetime.timedelta(0)))
         else:
             self.exit()
     
@@ -296,4 +288,4 @@ class InteractiveApp(App):
 def run_interactive_mode(categories, tasks_file, selected_category=None):
     """Launch the interactive Textual interface for task entry."""
     app = InteractiveApp(categories, tasks_file, selected_category)
-    app.run()
+    return app.run()
