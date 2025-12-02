@@ -54,6 +54,17 @@ snap install punch
 - `punch whats-new`  
   Show the changelog for the current version.
 
+### Excluding Tasks from Reports
+
+You can mark tasks that should not be counted as work tasks (e.g., lunch breaks, personal time) by appending `**` to the task name:
+
+```bash
+punch add "lunch**"
+punch add "break**"
+```
+
+Tasks ending with `**` will be excluded from reports and timecard calculations.
+
 ### Interactive Mode
 
 Running `punch` with no arguments launches an interactive prompt for selecting categories and tasks.
