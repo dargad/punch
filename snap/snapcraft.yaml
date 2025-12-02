@@ -116,9 +116,13 @@ parts:
       craftctl default
       export PLAYWRIGHT_BROWSERS_PATH=$SNAPCRAFT_PART_INSTALL/playwright-browsers
       playwright install --with-deps firefox
-      # if [ -e $SNAPCRAFT_PART_INSTALL/playwright-browsers/firefox-1490/libonnxruntime.so ]
-      execstack --clear-execstack $SNAPCRAFT_PART_INSTALL/playwright-browsers/firefox-1490/firefox/libonnxruntime.so
-      # fi
+      
+      # Detect the libonnxruntime.so regardless of version number
+      for dir in $SNAPCRAFT_PART_INSTALL/playwright-browsers/firefox-*; do
+        if [ -d "$dir/firefox" ] && [ -e "$dir/firefox/libonnxruntime.so" ]; then
+          execstack --clear-execstack "$dir/firefox/libonnxruntime.so"
+        fi
+      done
       install -m755 punch-completion.bash $SNAPCRAFT_PART_INSTALL/bin/punch-completer
       install -D -m644 "$CRAFT_PART_SRC/CHANGELOG.md" \
         "$CRAFT_PART_INSTALL/usr/share/punch/CHANGELOG.md"
