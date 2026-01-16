@@ -187,16 +187,14 @@ def add(
     config = load_config(get_config_path())
     categories = config.get('categories', {})
     tasks_file = get_tasks_file()
-    
-    print(time)
-    
+
     if task_args:
         task_str = " ".join([escape_separators(s) for s in task_args])
     else:
         task_str = ""
-        
+
     console = Console()
-    
+
     if task_args is None:
         task = interactive_mode(categories, tasks_file)
     elif (cn := resolve_category(task_str, categories, console)) is not None:
@@ -204,10 +202,10 @@ def add(
         task = interactive_mode(categories, tasks_file, name)
     else:
         task = parse_new_task_string(task_str, categories)
-        
+
     if time:
         task.finish = time_to_current_datetime(time)
-        
+
     handle_add(
         SimpleNamespace(verbose=verbose),
         task,
@@ -222,10 +220,7 @@ def resolve_category(task_str, categories, console):
             name, cat_full = get_category_by_short(categories, cat)
             if cat_full:
                 return cat_full, name
-            console.print(f"Category '{cat}' not found.")
-            raise typer.Exit(code=1)
-                
-                    
+
 
 def resolve_date_range(day: Optional[str], from_date: Optional[str], to_date: Optional[str], ctx_name: str = "report"):
     """
