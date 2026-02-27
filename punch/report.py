@@ -32,6 +32,9 @@ def generate_report(tasks_file, date_from, date_to, collapse=True):
 
     report = {}
     for cat, entries in sorted(categories.items()):
+        # Calculate category total
+        category_total = sum((entry.duration for entry in entries), datetime.timedelta(0))
+        
         if collapse:
             # Collapse: sum durations for each unique task name (notes ignored)
             task_durations = {}
@@ -39,9 +42,11 @@ def generate_report(tasks_file, date_from, date_to, collapse=True):
                 if entry.task not in task_durations:
                     task_durations[entry.task] = datetime.timedelta(0)
                 task_durations[entry.task] += entry.duration
-            report[cat] = [(task, total_duration) for task, total_duration in sorted(task_durations.items())]
+            tasks = [(task, total_duration) for task, total_duration in sorted(task_durations.items())]
         else:
-            report[cat] = []
+            tasks = []
             for entry in entries:
-                report[cat].append((entry.task, entry.notes, entry.duration))
+                tasks.append((entry.task, entry.notes, entry.duration))
+        
+        report[cat] = {"tasks": tasks, "total": category_total}
     return report

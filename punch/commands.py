@@ -208,8 +208,8 @@ def print_report(report):
     """
     Pretty-print the report dictionary using a rich Tree.
     The report dict should be in the format:
-      {category: [(task, duration)]} if collapsed,
-      or {category: [(task, notes, duration)]} if not collapsed.
+      {category: {"tasks": [(task, duration)], "total": timedelta}} if collapsed,
+      or {category: {"tasks": [(task, notes, duration)], "total": timedelta}} if not collapsed.
     Also prints the sum of all durations at the bottom.
     """
     console = Console()
@@ -217,8 +217,8 @@ def print_report(report):
 
     # Find max length for left part (task or task | notes)
     max_left_len = 0
-    for entries in report.values():
-        for entry in entries:
+    for cat_data in report.values():
+        for entry in cat_data["tasks"]:
             if len(entry) == 2:
                 task = entry[0]
                 left = f"{task}"
@@ -231,9 +231,16 @@ def print_report(report):
 
     total_duration = timedelta(0)
 
-    for category, entries in report.items():
-        cat_node = tree.add(f"[bold]{category}[/bold]")
-        for entry in entries:
+    for category, cat_data in report.items():
+        # Format category total
+        cat_total = cat_data["total"]
+        cat_total_mins = int(cat_total.total_seconds() // 60)
+        cat_hours = int(cat_total.total_seconds() // 3600)
+        cat_mins = int((cat_total.total_seconds() % 3600) // 60)
+        cat_total_str = f"{cat_hours}:{cat_mins:02d}"
+        cat_node = tree.add(f"[bold]{category}[/bold] [dim]{cat_total_str} ({cat_total_mins} min)[/dim]")
+        
+        for entry in cat_data["tasks"]:
             if len(entry) == 2:
                 # collapsed: (task, duration)
                 task, duration = entry
