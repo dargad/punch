@@ -240,8 +240,8 @@ def resolve_date_range(day: Optional[str], from_date: Optional[str], to_date: Op
 
     # Convert to date objects
     day_obj = human_date(day) if day else None
-    from_obj = valid_date(from_date) if from_date else None
-    to_obj = valid_date(to_date) if to_date else None
+    from_obj = human_date(from_date) if from_date else None
+    to_obj = human_date(to_date) if to_date else None
 
     if from_obj and to_obj and from_obj > to_obj:
         typer.secho(f"--from cannot be after --to in {ctx_name}.", fg=typer.colors.RED)
@@ -265,11 +265,11 @@ def report(
     ),
     from_date: Optional[str] = typer.Option(
         None, "-f", "--from", help="Start date for the report.",
-        callback=check_valid_date
+        callback=check_human_date
     ),
     to_date: Optional[str] = typer.Option(
         None, "-t", "--to", help="End date for the report (defaults to today if --from is given).",
-        callback=check_valid_date
+        callback=check_human_date
     ),
 ):
     """
@@ -313,8 +313,8 @@ def login(
 @app.command()
 def submit(
     day: str = typer.Option(None, "-d", "--day", help="Specify a single day for the report (sets --from and --to to this date)", callback=check_human_date),
-    from_: str = typer.Option(None, "-f", "--from", help="Specify the start date for the submission (YYYY-MM-DD)", callback=check_valid_date),
-    to: str = typer.Option(None, "-t", "--to", help="Specify the end date for the submission (YYYY-MM-DD)", callback=check_valid_date),
+    from_: str = typer.Option(None, "-f", "--from", help="Specify the start date for the submission (YYYY-MM-DD)", callback=check_human_date),
+    to: str = typer.Option(None, "-t", "--to", help="Specify the end date for the submission (YYYY-MM-DD)", callback=check_human_date),
     dry_run: bool = typer.Option(False, "-n", "--dry-run", help="Perform a dry run of the submission"),
     headed: bool = typer.Option(False, "--headed", help="Run the browser in headed mode"),
     interactive: bool = typer.Option(False, "-i", "--interactive", help="Run in interactive mode (implies --headed)"),
