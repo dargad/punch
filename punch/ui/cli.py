@@ -240,8 +240,8 @@ def resolve_date_range(day: Optional[str], from_date: Optional[str], to_date: Op
 
     # Convert to date objects
     day_obj = human_date(day) if day else None
-    from_obj = valid_date(from_date) if from_date else None
-    to_obj = valid_date(to_date) if to_date else None
+    from_obj = human_date(from_date) if from_date else None
+    to_obj = human_date(to_date) if to_date else None
 
     if from_obj and to_obj and from_obj > to_obj:
         typer.secho(f"--from cannot be after --to in {ctx_name}.", fg=typer.colors.RED)
@@ -265,17 +265,19 @@ def report(
     ),
     from_date: Optional[str] = typer.Option(
         None, "-f", "--from", help="Start date for the report.",
-        callback=check_valid_date
+        callback=check_human_date
     ),
     to_date: Optional[str] = typer.Option(
         None, "-t", "--to", help="End date for the report (defaults to today if --from is given).",
-        callback=check_valid_date
+        callback=check_human_date
     ),
 ):
     """
     Show report for a specific day or date range.
     """
+    print(f"from_date={from_date}, to_date={to_date}")
     day_obj, from_obj, to_obj = resolve_date_range(day, from_date, to_date, ctx_name="report")
+    print(f"Resolved: day={day_obj}, from={from_obj}, to={to_obj}")
     parser_args = SimpleNamespace(day=day_obj, from_=from_obj, to=to_obj)
     tasks_file = get_tasks_file()
     console = Console()
