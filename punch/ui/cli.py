@@ -275,9 +275,7 @@ def report(
     """
     Show report for a specific day or date range.
     """
-    print(f"from_date={from_date}, to_date={to_date}")
     day_obj, from_obj, to_obj = resolve_date_range(day, from_date, to_date, ctx_name="report")
-    print(f"Resolved: day={day_obj}, from={from_obj}, to={to_obj}")
     parser_args = SimpleNamespace(day=day_obj, from_=from_obj, to=to_obj)
     tasks_file = get_tasks_file()
     console = Console()
@@ -315,8 +313,8 @@ def login(
 @app.command()
 def submit(
     day: str = typer.Option(None, "-d", "--day", help="Specify a single day for the report (sets --from and --to to this date)", callback=check_human_date),
-    from_: str = typer.Option(None, "-f", "--from", help="Specify the start date for the submission (YYYY-MM-DD)", callback=check_valid_date),
-    to: str = typer.Option(None, "-t", "--to", help="Specify the end date for the submission (YYYY-MM-DD)", callback=check_valid_date),
+    from_: str = typer.Option(None, "-f", "--from", help="Specify the start date for the submission (YYYY-MM-DD)", callback=check_human_date),
+    to: str = typer.Option(None, "-t", "--to", help="Specify the end date for the submission (YYYY-MM-DD)", callback=check_human_date),
     dry_run: bool = typer.Option(False, "-n", "--dry-run", help="Perform a dry run of the submission"),
     headed: bool = typer.Option(False, "--headed", help="Run the browser in headed mode"),
     interactive: bool = typer.Option(False, "-i", "--interactive", help="Run in interactive mode (implies --headed)"),
