@@ -16,7 +16,7 @@ import yaml
 from rich.console import Console
 
 from punch.commands import get_category_by_short, handle_add, handle_export, handle_help, handle_login, handle_report, handle_start, handle_submit, time_to_current_datetime
-from punch.config import get_config_path, get_tasks_file, load_config
+from punch.config import get_config_path, get_config_d_path, get_tasks_file, load_config
 from punch.tasks import CMDLINE_SEPARATOR, escape_separators, get_recent_tasks, parse_new_task_string, split_unescaped, write_task
 from punch.ui.interactive import run_interactive_mode
 from punch import __version__, _DISTRIBUTION
@@ -354,9 +354,12 @@ def config_edit(
 def config_path_cmd(
     verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable verbose output"),
 ):
-    """Show the path to the configuration file."""
-    config_path = get_config_path()
-    typer.echo(config_path)
+    """Show the path to the configuration file or directory."""
+    config_d_path = get_config_d_path()
+    if os.path.isdir(config_d_path):
+        typer.echo(config_d_path)
+    else:
+        typer.echo(get_config_path())
 
 @config_app.command("set")
 def config_set(
