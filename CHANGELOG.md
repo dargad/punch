@@ -1,10 +1,18 @@
 # Changelog:
 
-## 0.3.4
-* Partial matching of human readable dates
-  (e.g. `punch report -d yes` matches yesterday)
-* Introduce new config option: 'time_format' to specify preferred time format
-  (12h/24h) for parsing and displaying times.
+## 0.4.0
+* report: allow human-friendly dates in report ranges (e.g. `today`, `yesterday`) (#14)
+* submit: allow human-friendly dates for submission ranges
+* report: sum up time spent per category
+* cli: use Textual for interactive task input
+* cli: unify workflow for adding tasks from CLI args and interactive mode (#7)
+* cli: fix adding untracked tasks with `**` notation
+* cli: fix return type for `find_matching_in_shortcuts`
+* web: check for auth file before attempting submission
+* config: add `time_format` option
+* docs: explain double-asterisk (`**`) task entries
+* tests: fix `punch.ui.cli` import
+* snap: improve snap packaging and CI workflow
 
 ## 0.3.3
 * Fixed interactive task adding.
