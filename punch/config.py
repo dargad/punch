@@ -7,13 +7,15 @@ except ImportError:
     YAML = None
 
 def get_config_path():
-    # Use ~/.config which works in both snap (HOME is remapped) and non-snap environments
-    config_dir = os.path.join(os.path.expanduser("~/.config"), "punch")
+    # Allow override with PUNCH_CONFIG_DIR, otherwise use ~/.config/punch
+    config_dir = os.environ.get("PUNCH_CONFIG_DIR") or \
+                 os.path.join(os.path.expanduser("~/.config"), "punch")
     return os.path.join(config_dir, "punch.yaml")
 
 def get_tasks_file():
-    # Use ~/.local/share which works in both snap (HOME is remapped) and non-snap environments
-    data_dir = os.path.join(os.path.expanduser("~/.local/share"), "punch")
+    # Allow override with PUNCH_DATA_DIR, otherwise use ~/.local/share/punch
+    data_dir = os.environ.get("PUNCH_DATA_DIR") or \
+               os.path.join(os.path.expanduser("~/.local/share"), "punch")
     os.makedirs(data_dir, exist_ok=True)
     return os.path.join(data_dir, "tasks.txt")
 

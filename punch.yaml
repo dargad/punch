@@ -1,0 +1,8 @@
+full_name: John Doe
+timecards_url: google.com
+date_format: "%d/%m/%Y"
+categories:
+  Example:
+    short: c
+timecards_round: 5
+foo: bar

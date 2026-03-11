@@ -19,8 +19,8 @@ categories:
     caseid: "200"
 EOF
 
-export XDG_CONFIG_HOME=$(pwd)
-export XDG_DATA_HOME=$(pwd)
+export PUNCH_CONFIG_DIR=$(pwd)
+export PUNCH_DATA_DIR=$(pwd)
 
 # 1. Test: start command with time
 $PUNCH start -t 00:01
