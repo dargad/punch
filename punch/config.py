@@ -7,12 +7,13 @@ except ImportError:
     YAML = None
 
 def get_config_path():
-    xdg_config_home = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
-    return os.path.join(xdg_config_home, "punch", "punch.yaml")
+    # Use ~/.config which works in both snap (HOME is remapped) and non-snap environments
+    config_dir = os.path.join(os.path.expanduser("~/.config"), "punch")
+    return os.path.join(config_dir, "punch.yaml")
 
 def get_tasks_file():
-    xdg_data_home = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
-    data_dir = os.path.join(xdg_data_home, "punch")
+    # Use ~/.local/share which works in both snap (HOME is remapped) and non-snap environments
+    data_dir = os.path.join(os.path.expanduser("~/.local/share"), "punch")
     os.makedirs(data_dir, exist_ok=True)
     return os.path.join(data_dir, "tasks.txt")
 
