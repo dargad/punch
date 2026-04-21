@@ -334,24 +334,40 @@ class WeeklyEditorApp(App):
         for col in columns: visible_dates.add(col.date_obj.strftime("%Y-%m-%d"))
 
         preserved_lines = []
+        original_start_times = {}
         if os.path.exists(self.tasks_file):
             with open(self.tasks_file, 'r') as f:
                 for line in f:
                     parts = line.split('|')
-                    if parts:
-                        if parts[0].strip()[:10] not in visible_dates:
-                            preserved_lines.append(line.strip())
+                    if not parts or not parts[0].strip():
+                        continue
+                    date_time_str = parts[0].strip()
+                    date_key = date_time_str[:10]
+                    # Record earliest timestamp per visible date before discarding its lines
+                    if date_key in visible_dates:
+                        try:
+                            dt_obj = datetime.strptime(date_time_str, "%Y-%m-%d %H:%M")
+                        except ValueError:
+                            dt_obj = None
+                        if dt_obj is not None:
+                            if date_key not in original_start_times or dt_obj < original_start_times[date_key]:
+                                original_start_times[date_key] = dt_obj
+                    else:
+                        preserved_lines.append(line.strip())
 
         new_lines = []
         for col in columns:
             cards = col.query(TimeCard)
             if not cards: continue
             date_str = col.date_obj.strftime("%Y-%m-%d")
-            current_time = datetime.strptime(f"{date_str} {DEFAULT_START_TIME}", "%Y-%m-%d %H:%M")
+            # Use the original start time for this date if available; otherwise fall back to DEFAULT_START_TIME
+            if date_str in original_start_times:
+                current_time = original_start_times[date_str]
+            else:
+                current_time = datetime.strptime(f"{date_str} {DEFAULT_START_TIME}", "%Y-%m-%d %H:%M")
             new_lines.append(f"{current_time.strftime('%Y-%m-%d %H:%M')} | start")
             for card in cards:
                 current_time += timedelta(minutes=card.minutes)
-                
                 line = f"{current_time.strftime('%Y-%m-%d %H:%M')} | {card.category} | "
                 if card.description:
                     line += f"{card.description}"
