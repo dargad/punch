@@ -318,7 +318,8 @@ class WeeklyEditorApp(App):
             col_date_str = col.date_obj.strftime("%Y-%m-%d")
             if col_date_str in data_by_date:
                 entries = sorted(data_by_date[col_date_str], key=lambda x: x["dt"])
-                last_time = datetime.strptime(f"{col_date_str} {DEFAULT_START_TIME}", "%Y-%m-%d %H:%M")
+                start_time_str = getattr(self, "start_time", DEFAULT_START_TIME)
+                last_time = datetime.strptime(f"{col_date_str} {start_time_str}", "%Y-%m-%d %H:%M")
                 for entry in entries:
                     if entry["cat"].lower() == "start":
                         last_time = entry["dt"]
