@@ -97,6 +97,42 @@ punch config set timecards_url https://example.com/timecards
 punch submit -n -f 2025-01-01 -t 2025-01-31
 ```
 
+### Weekly Editor
+
+By running:
+
+```bash
+punch weeklyeditor
+```
+
+The weekly editor provides an interactive Terminal User Interface (TUI) to view and manage your time cards for an entire week at a glance. It automatically calculates your daily and weekly totals and syncs directly with your underlying `tasks.txt` file.
+
+#### Keyboard Controls
+
+Navigation and editing are entirely keyboard-driven for speed and efficiency:
+
+* **`←` / `→` (Left/Right Arrows):** Move focus between different days of the week. Pressing Left on Sunday or Right on Saturday will automatically shift the view to the previous or next week.  
+* **`↑` / `↓` (Up/Down Arrows):** Navigate between individual time cards within a selected day, or navigate through lists inside the entry modal.  
+* **`Enter`:** Select/Edit the currently focused time card.  
+* **`a`:** **A**dd a new task to the currently selected day.  
+* **`e`:** **E**dit the currently focused time card.  
+* **`d`:** **D**elete the currently focused time card (prompts for confirmation).  
+* **`q`:** **Q**uit the weekly editor.
+
+#### Smart Task Entry
+
+When adding (`a`) or editing (`e`) a task, a modal will appear with several smart features:
+
+* **Categories:** Your categories are automatically loaded from `~/.config/punch/punch.yaml`. You can navigate this list using your Up/Down arrow keys.  
+* **Duration:** Time is entered simply as total **minutes** (e.g., `60`). The editor handles the math behind the scenes, automatically sequencing the start and end timestamps for your tasks in the storage file (assuming a standard 08:30 AM start time).  
+* **Smart Suggestions:** As you highlight different categories, the "Suggestions" list will automatically populate with descriptions you have previously used for that specific category. You can arrow down to a suggestion and press `Enter` to instantly fill the description field.
+
+#### Auto-Saving & Workflow
+
+You do not need to manually save your week. Every time you add, edit, or delete a task, the editor automatically recalculates the timeline and safely rewrites the changes to `~/.local/share/punch/tasks.txt`, preserving your history for dates outside the current view.
+
+**Note:** The weekly editor only modifies your local `tasks.txt` file. After you are finished editing your tasks for the week, the regular `punch submit` commands still need to be issued to officially log your time.
+
 ## Development
 
 - All commands are implemented using [Typer](https://typer.tiangolo.com/).

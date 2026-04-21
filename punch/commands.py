@@ -299,7 +299,7 @@ def handle_login(args, config, console):
         console.print(f"[red]{e}[/red]")
         sys.exit(1)
 
-def show_timecards_table(timecards):
+def show_timecards_table(timecards, title="Timecards for submission"):
     """
     Display the timecards in a table format using rich.
     """
@@ -307,7 +307,7 @@ def show_timecards_table(timecards):
     from rich.console import Console
     
     console = Console()
-    table = Table(title="Timecards for submission", show_footer=True)
+    table = Table(title=title, show_footer=True)
 
     table.add_column("Case no.", justify="center", style="cyan")
     table.add_column("Task", justify="left", style="magenta", max_width=50, no_wrap=True)
@@ -353,6 +353,14 @@ def handle_submit(args, config, tasks_file, console):
         if not timecards or len(timecards) == 0:
             console.print("No timecards found for submission.", style="bold red")
             return
+
+        no_case_entries = [tc for tc in timecards if getattr(tc, "case_no") is None]
+
+        if no_case_entries:
+            show_timecards_table(no_case_entries, title="Entries with missing case numbers (won't be submitted)")
+        
+        timecards = [tc for tc in timecards if getattr(tc, "case_no") is not None]        
+
         show_timecards_table(timecards)
         
         suffix = DRY_RUN_SUFFIX if args.dry_run else ""
