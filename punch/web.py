@@ -4,7 +4,6 @@ from pathlib import Path
 import time
 from playwright.sync_api import sync_playwright, Error as playwright_error
 from punch.tasks import read_tasklog
-import punch.commands
 import datetime
 from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn
 from rich.console import Console
