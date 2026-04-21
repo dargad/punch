@@ -131,7 +131,7 @@ When adding (`a`) or editing (`e`) a task, a modal will appear with several smar
 
 You do not need to manually save your week. Every time you add, edit, or delete a task, the editor automatically recalculates the timeline and safely rewrites the changes to `~/.local/share/punch/tasks.txt`, preserving your history for dates outside the current view.
 
-**Note:** The weekly editor only modifies your local `tasks.txt` file. After you are finished editing your tasks for the week, the regular `punch submit` commands still need to be issued to officially log your time.### Weekly Editor
+**Note:** The weekly editor only modifies your local `tasks.txt` file. After you are finished editing your tasks for the week, the regular `punch submit` commands still need to be issued to officially log your time.
 
 ## Development
 
