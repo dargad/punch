@@ -199,7 +199,7 @@ class DayColumn(Vertical):
     
     def clear_entries(self):
         container = self.query_one(".cards-container")
-        for child in container.children:
+        for child in list(container.children):
             child.minutes = 0
             child.remove()
         self.total_minutes = 0
