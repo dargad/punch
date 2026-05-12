@@ -147,10 +147,10 @@ class TestHandleSubmitResume(unittest.TestCase):
             verbose=False, sleep=0,
         )
 
-    def _run(self, args, timecards=None):
+    def _run(self, args, timecards=None, submit_return=True):
         tcs = timecards if timecards is not None else self.all_timecards
         with patch("punch.commands.get_timecards", return_value=tcs), \
-             patch("punch.commands.submit_timecards") as mock_submit, \
+             patch("punch.commands.submit_timecards", return_value=submit_return) as mock_submit, \
              patch("punch.commands.show_timecards_table"), \
              patch("punch.commands.get_config_path", return_value=self.config_path):
             handle_submit(args, self.config, "tasks.txt", self.console)
@@ -257,6 +257,15 @@ class TestHandleSubmitResume(unittest.TestCase):
 
         self.console.input.return_value = "n"
         self._run(self._args(resume=False))
+
+        with patch("punch.commands.get_config_path", return_value=self.config_path):
+            self.assertIn("leftover", _load_progress())
+
+    def test_progress_not_cleared_after_incomplete_submission(self):
+        with patch("punch.commands.get_config_path", return_value=self.config_path):
+            _save_progress({"leftover"})
+
+        self._run(self._args(resume=False, dry_run=False), submit_return=False)
 
         with patch("punch.commands.get_config_path", return_value=self.config_path):
             self.assertIn("leftover", _load_progress())

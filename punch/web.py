@@ -196,7 +196,7 @@ def submit_timecards(config, timecards, headless=True, interactive=False, dry_ru
     
     if not timecards or len(timecards) == 0:
         console.print("[yellow]No timecards to submit.[/yellow]")
-        return
+        return False
 
     auth_json_path = get_auth_json_path()
 
@@ -209,7 +209,7 @@ def submit_timecards(config, timecards, headless=True, interactive=False, dry_ru
         browser = p.firefox.launch(headless=headless)
         context = _get_browser_context(browser, auth_json_path if Path(auth_json_path).exists() else None)
         if context is None:
-            return
+            return False
 
         page = context.new_page()
         if verbose:
@@ -222,7 +222,7 @@ def submit_timecards(config, timecards, headless=True, interactive=False, dry_ru
             _submit_entries_with_progress(console, page, config, timecards, interactive, dry_run, sleep, on_progress)
         except playwright_error:
             console.print("[red]The browser window was closed before submission could complete.[/red]")
-            return
+            return False
 
         if not interactive:
             _cancel_edit(page)
@@ -232,6 +232,8 @@ def submit_timecards(config, timecards, headless=True, interactive=False, dry_ru
             console.print("[yellow]Interactive mode enabled. Please review the entries before submitting.[/yellow]")
             console.print("[yellow]Close the browser window when done.[/yellow]")
             page.wait_for_event("close", timeout=0)
+
+    return True
 
 def _get_browser_context(browser, auth_json_path):
     try:

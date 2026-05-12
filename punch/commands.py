@@ -424,7 +424,7 @@ def handle_submit(args, config, tasks_file, console):
             submitted_ids.add(tc_id)
             _save_progress(submitted_ids)
 
-        submit_timecards(
+        submission_completed = submit_timecards(
             config,
             timecards,
             headless=not args.headed,
@@ -435,7 +435,7 @@ def handle_submit(args, config, tasks_file, console):
             on_progress=on_progress if not args.dry_run else None,
         )
 
-        if not args.dry_run:
+        if not args.dry_run and submission_completed:
             _clear_progress()
 
     except TimeoutError:
