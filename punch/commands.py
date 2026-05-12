@@ -376,7 +376,7 @@ def _load_progress():
 
 def _save_progress(submitted_ids):
     path = _get_progress_path()
-    dir_name = os.path.dirname(path)
+    dir_name = os.path.dirname(path) or None
     # Write to a temporary file in the same directory, then atomically replace
     with tempfile.NamedTemporaryFile(mode='w', dir=dir_name, delete=False, suffix=_PROGRESS_TEMP_SUFFIX, encoding='utf-8') as f:
         json.dump({"submitted": list(submitted_ids)}, f)
@@ -388,8 +388,10 @@ def _save_progress(submitted_ids):
         os.replace(temp_path, path)
     except OSError:
         # Clean up temp file if replace fails
-        if os.path.exists(temp_path):
+        try:
             os.unlink(temp_path)
+        except FileNotFoundError:
+            pass
         raise
 
 def _clear_progress():
