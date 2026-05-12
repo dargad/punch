@@ -376,7 +376,7 @@ def _save_progress(submitted_ids):
     path = _get_progress_path()
     dir_name = os.path.dirname(path)
     # Write to a temporary file in the same directory, then atomically replace
-    with tempfile.NamedTemporaryFile(mode='w', dir=dir_name, delete=False, suffix='.tmp') as f:
+    with tempfile.NamedTemporaryFile(mode='w', dir=dir_name, delete=False, suffix='.tmp', encoding='utf-8') as f:
         json.dump({"submitted": list(submitted_ids)}, f)
         f.flush()
         os.fsync(f.fileno())
@@ -384,7 +384,7 @@ def _save_progress(submitted_ids):
     # Atomic replace (works on both POSIX and Windows as of Python 3.3)
     try:
         os.replace(temp_path, path)
-    except Exception:
+    except (OSError, IOError):
         # Clean up temp file if replace fails
         if os.path.exists(temp_path):
             os.unlink(temp_path)
