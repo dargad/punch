@@ -372,8 +372,17 @@ def _load_progress():
     return set(submitted)
 
 def _save_progress(submitted_ids):
-    with open(_get_progress_path(), "w") as f:
+    import tempfile
+    path = _get_progress_path()
+    dir_name = os.path.dirname(path)
+    # Write to a temporary file in the same directory, then atomically replace
+    with tempfile.NamedTemporaryFile(mode='w', dir=dir_name, delete=False, suffix='.tmp') as f:
         json.dump({"submitted": list(submitted_ids)}, f)
+        f.flush()
+        os.fsync(f.fileno())
+        temp_path = f.name
+    # Atomic replace on POSIX systems
+    os.replace(temp_path, path)
 
 def _clear_progress():
     path = _get_progress_path()
