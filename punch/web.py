@@ -183,7 +183,10 @@ def get_timecards(config, file_path="tasks.txt", date_from=None, date_to=None):
         return []
     return [_convert_to_timecard(config, entry) for entry in entries]
 
-def submit_timecards(config, timecards, headless=True, interactive=False, dry_run=False, verbose=False, sleep=0.0):
+def timecard_id(tc):
+    return f"{tc.case_no}_{tc.start_date}_{tc.start_time}_{tc.minutes}"
+
+def submit_timecards(config, timecards, headless=True, interactive=False, dry_run=False, verbose=False, sleep=0.0, on_progress=None):
     """
     Submits timecards for tasks between date_from and date_to (inclusive).
     date_from and date_to should be datetime.date objects or None (defaults to all).
@@ -216,7 +219,7 @@ def submit_timecards(config, timecards, headless=True, interactive=False, dry_ru
             console.print(f"[green]Login successful. Submitting timecards...[/green]{suffix}")
 
         try:
-            _submit_entries_with_progress(console, page, config, timecards, interactive, dry_run, sleep)
+            _submit_entries_with_progress(console, page, config, timecards, interactive, dry_run, sleep, on_progress)
         except playwright_error:
             console.print("[red]The browser window was closed before submission could complete.[/red]")
             return
@@ -280,7 +283,7 @@ def _reload_timecards(console, page, config):
     page.wait_for_url(timecards_link, timeout=30000)
 
 
-def _submit_entries_with_progress(console, page, config, timecards, interactive, dry_run=True, sleep=0.0):
+def _submit_entries_with_progress(console, page, config, timecards, interactive, dry_run=True, sleep=0.0, on_progress=None):
     from rich.progress import Progress, BarColumn, TextColumn, TimeElapsedColumn
 
     PROGRESS_WIDTH = 30  # Constant for progress description width
@@ -325,6 +328,8 @@ def _submit_entries_with_progress(console, page, config, timecards, interactive,
                 # We can reuse the page if we are saving this one
                 if not interactive:
                     _save_and_new(page)
+                    if on_progress:
+                        on_progress(timecard_id(timecard))
             progress.update(task, advance=1, desc=desc, count=f"{idx}/{total}")
         progress.update(task, completed=total, count=f"{total}/{total}")
 
