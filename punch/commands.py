@@ -3,6 +3,7 @@ import json
 import os
 import re
 import sys
+import tempfile
 from rich.console import Console
 from rich.tree import Tree
 from rich.syntax import Syntax
@@ -372,7 +373,6 @@ def _load_progress():
     return set(submitted)
 
 def _save_progress(submitted_ids):
-    import tempfile
     path = _get_progress_path()
     dir_name = os.path.dirname(path)
     # Write to a temporary file in the same directory, then atomically replace
@@ -381,7 +381,7 @@ def _save_progress(submitted_ids):
         f.flush()
         os.fsync(f.fileno())
         temp_path = f.name
-    # Atomic replace on POSIX systems
+    # Atomic replace (works on both POSIX and Windows as of Python 3.3)
     os.replace(temp_path, path)
 
 def _clear_progress():
