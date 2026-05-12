@@ -1,7 +1,7 @@
 # Changelog:
 
 ## next
-* submit: added --resume/-r option for interrupted submitions, e.g. `punch submit --resume`
+* submit: added --resume/-r option for interrupted submissions, e.g. `punch submit --resume`
 
 ## 0.4.0
 * report: allow human-friendly dates in report ranges (e.g. `today`, `yesterday`) (#14)
