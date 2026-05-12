@@ -376,7 +376,7 @@ def _load_progress():
 
 def _save_progress(submitted_ids):
     path = _get_progress_path()
-    dir_name = os.path.dirname(path) or None
+    dir_name = os.path.dirname(path)
     # Write to a temporary file in the same directory, then atomically replace
     with tempfile.NamedTemporaryFile(mode='w', dir=dir_name, delete=False, suffix=_PROGRESS_TEMP_SUFFIX, encoding='utf-8') as f:
         json.dump({"submitted": list(submitted_ids)}, f)
