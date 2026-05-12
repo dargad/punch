@@ -382,7 +382,13 @@ def _save_progress(submitted_ids):
         os.fsync(f.fileno())
         temp_path = f.name
     # Atomic replace (works on both POSIX and Windows as of Python 3.3)
-    os.replace(temp_path, path)
+    try:
+        os.replace(temp_path, path)
+    except Exception:
+        # Clean up temp file if replace fails
+        if os.path.exists(temp_path):
+            os.unlink(temp_path)
+        raise
 
 def _clear_progress():
     path = _get_progress_path()
