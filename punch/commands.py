@@ -344,8 +344,32 @@ def _load_progress():
     path = _get_progress_path()
     if not os.path.exists(path):
         return set()
-    with open(path) as f:
-        return set(json.load(f).get("submitted", []))
+    try:
+        with open(path) as f:
+            progress = json.load(f)
+    except (OSError, json.JSONDecodeError, TypeError, ValueError) as e:
+        print(
+            f"Warning: ignoring invalid submit progress file at {path}: {e}",
+            file=sys.stderr,
+        )
+        return set()
+
+    if not isinstance(progress, dict):
+        print(
+            f"Warning: ignoring invalid submit progress file at {path}: expected an object",
+            file=sys.stderr,
+        )
+        return set()
+
+    submitted = progress.get("submitted", [])
+    if not isinstance(submitted, list) or not all(isinstance(item, str) for item in submitted):
+        print(
+            f"Warning: ignoring invalid submit progress file at {path}: expected 'submitted' to be a list of strings",
+            file=sys.stderr,
+        )
+        return set()
+
+    return set(submitted)
 
 def _save_progress(submitted_ids):
     with open(_get_progress_path(), "w") as f:
