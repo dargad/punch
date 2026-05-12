@@ -1,7 +1,9 @@
 from datetime import datetime, timedelta
+import json
 import os
 import re
 import sys
+import tempfile
 from rich.console import Console
 from rich.tree import Tree
 from rich.syntax import Syntax
@@ -9,12 +11,14 @@ import yaml
 
 from playwright.sync_api import TimeoutError
 
-from punch.config import set_config_value
+from punch.config import get_config_path, set_config_value
 from punch.export import export_csv, export_json
 from punch.report import generate_report
 from punch.tasks import CMDLINE_SEPARATOR, TaskEntry, parse_new_task_string, write_task
-from punch.web import DRY_RUN_SUFFIX, AuthFileNotFoundError, MissingTimecardsUrl, NoCaseMappingError, get_timecards, login_to_site, submit_timecards
+from punch.web import DRY_RUN_SUFFIX, AuthFileNotFoundError, MissingTimecardsUrl, NoCaseMappingError, get_timecards, login_to_site, submit_timecards, timecard_id
 
+# Constants for progress file handling
+_PROGRESS_TEMP_SUFFIX = '.tmp'
     
 def time_to_current_datetime(time_str: str) -> datetime:
     """Combine the current date with a given time string (HH:MM) to produce a datetime."""
@@ -335,6 +339,66 @@ def show_timecards_table(timecards):
 
     console.print(table)
 
+def _get_progress_path():
+    config_dir = os.path.dirname(get_config_path())
+    return os.path.join(config_dir, "submit_progress.json")
+
+def _load_progress():
+    path = _get_progress_path()
+    if not os.path.exists(path):
+        return set()
+    try:
+        with open(path) as f:
+            progress = json.load(f)
+    except (OSError, json.JSONDecodeError, TypeError, ValueError) as e:
+        print(
+            f"Warning: ignoring invalid submit progress file at {path}: {e}",
+            file=sys.stderr,
+        )
+        return set()
+
+    if not isinstance(progress, dict):
+        print(
+            f"Warning: ignoring invalid submit progress file at {path}: expected an object",
+            file=sys.stderr,
+        )
+        return set()
+
+    submitted = progress.get("submitted", [])
+    if not isinstance(submitted, list) or not all(isinstance(item, str) for item in submitted):
+        print(
+            f"Warning: ignoring invalid submit progress file at {path}: expected 'submitted' to be a list of strings",
+            file=sys.stderr,
+        )
+        return set()
+
+    return set(submitted)
+
+def _save_progress(submitted_ids):
+    path = _get_progress_path()
+    dir_name = os.path.dirname(path)
+    # Write to a temporary file in the same directory, then atomically replace
+    with tempfile.NamedTemporaryFile(mode='w', dir=dir_name, delete=False, suffix=_PROGRESS_TEMP_SUFFIX, encoding='utf-8') as f:
+        json.dump({"submitted": list(submitted_ids)}, f)
+        f.flush()
+        os.fsync(f.fileno())
+        temp_path = f.name
+    # Atomic replace (works on both POSIX and Windows as of Python 3.3)
+    try:
+        os.replace(temp_path, path)
+    except OSError:
+        # Clean up temp file if replace fails
+        try:
+            os.unlink(temp_path)
+        except FileNotFoundError:
+            pass
+        raise
+
+def _clear_progress():
+    path = _get_progress_path()
+    if os.path.exists(path):
+        os.remove(path)
+
 def handle_submit(args, config, tasks_file, console):
     try:
         if args.interactive:
@@ -353,23 +417,45 @@ def handle_submit(args, config, tasks_file, console):
         if not timecards or len(timecards) == 0:
             console.print("No timecards found for submission.", style="bold red")
             return
+
+        resume = getattr(args, 'resume', False)
+        submitted_ids = _load_progress() if resume else set()
+
+        if resume and submitted_ids:
+            pending = [tc for tc in timecards if timecard_id(tc) not in submitted_ids]
+            skipped = len(timecards) - len(pending)
+            if not pending:
+                console.print("[green]All timecards already submitted.[/green]")
+                _clear_progress()
+                return
+            console.print(f"[cyan]Resuming: skipping {skipped} already submitted entr{'y' if skipped == 1 else 'ies'}.[/cyan]")
+            timecards = pending
+
         show_timecards_table(timecards)
-        
+
         suffix = DRY_RUN_SUFFIX if args.dry_run else ""
         proceed = console.input(f"Proceed with submission?{suffix} (y/N): ").strip().lower()
         if proceed != "y":
             console.print("Submission cancelled.", style="bold yellow")
             return
 
-        submit_timecards(
+        def on_progress(tc_id):
+            submitted_ids.add(tc_id)
+            _save_progress(submitted_ids)
+
+        submission_completed = submit_timecards(
             config,
             timecards,
             headless=not args.headed,
             interactive=args.interactive,
             dry_run=args.dry_run,
             verbose=args.verbose,
-            sleep=args.sleep
+            sleep=args.sleep,
+            on_progress=on_progress if not args.dry_run else None,
         )
+
+        if not args.dry_run and submission_completed:
+            _clear_progress()
 
     except TimeoutError:
         console.print("[red]Submission timed out. Please retry logging in with `punch login`[/red]")

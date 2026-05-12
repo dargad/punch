@@ -318,6 +318,7 @@ def submit(
     dry_run: bool = typer.Option(False, "-n", "--dry-run", help="Perform a dry run of the submission"),
     headed: bool = typer.Option(False, "--headed", help="Run the browser in headed mode"),
     interactive: bool = typer.Option(False, "-i", "--interactive", help="Run in interactive mode (implies --headed)"),
+    resume: bool = typer.Option(False, "-r", "--resume", help="Resume from last saved progress after a failed submission"),
     sleep: float = typer.Option(0, "--sleep", help="Sleep for X seconds after filling out the form"),
     verbose: bool = typer.Option(False, "-v", "--verbose", help="Enable verbose output"),
 ):
@@ -325,7 +326,7 @@ def submit(
     Submit timecards for a specific day or date range to SF.
     """
     day_obj, from_obj, to_obj = resolve_date_range(day, from_, to, ctx_name="submit")
-    parser_args = SimpleNamespace(day=day_obj, from_=from_obj, to=to_obj, dry_run=dry_run, headed=headed, interactive=interactive, sleep=sleep, verbose=verbose)
+    parser_args = SimpleNamespace(day=day_obj, from_=from_obj, to=to_obj, dry_run=dry_run, headed=headed, interactive=interactive, resume=resume, sleep=sleep, verbose=verbose)
     config = load_config(get_config_path())
     tasks_file = get_tasks_file()
     console = Console()
