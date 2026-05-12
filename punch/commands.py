@@ -17,6 +17,8 @@ from punch.report import generate_report
 from punch.tasks import CMDLINE_SEPARATOR, TaskEntry, parse_new_task_string, write_task
 from punch.web import DRY_RUN_SUFFIX, AuthFileNotFoundError, MissingTimecardsUrl, NoCaseMappingError, get_timecards, login_to_site, submit_timecards, timecard_id
 
+# Constants for progress file handling
+_PROGRESS_TEMP_SUFFIX = '.tmp'
     
 def time_to_current_datetime(time_str: str) -> datetime:
     """Combine the current date with a given time string (HH:MM) to produce a datetime."""
@@ -376,7 +378,7 @@ def _save_progress(submitted_ids):
     path = _get_progress_path()
     dir_name = os.path.dirname(path)
     # Write to a temporary file in the same directory, then atomically replace
-    with tempfile.NamedTemporaryFile(mode='w', dir=dir_name, delete=False, suffix='.tmp', encoding='utf-8') as f:
+    with tempfile.NamedTemporaryFile(mode='w', dir=dir_name, delete=False, suffix=_PROGRESS_TEMP_SUFFIX, encoding='utf-8') as f:
         json.dump({"submitted": list(submitted_ids)}, f)
         f.flush()
         os.fsync(f.fileno())
@@ -384,7 +386,7 @@ def _save_progress(submitted_ids):
     # Atomic replace (works on both POSIX and Windows as of Python 3.3)
     try:
         os.replace(temp_path, path)
-    except (OSError, IOError):
+    except OSError:
         # Clean up temp file if replace fails
         if os.path.exists(temp_path):
             os.unlink(temp_path)
