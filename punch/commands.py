@@ -303,7 +303,7 @@ def handle_login(args, config, console):
         console.print(f"[red]{e}[/red]")
         sys.exit(1)
 
-def show_timecards_table(timecards):
+def show_timecards_table(timecards, title="Timecards for submission"):
     """
     Display the timecards in a table format using rich.
     """
@@ -311,7 +311,7 @@ def show_timecards_table(timecards):
     from rich.console import Console
     
     console = Console()
-    table = Table(title="Timecards for submission", show_footer=True)
+    table = Table(title=title, show_footer=True)
 
     table.add_column("Case no.", justify="center", style="cyan")
     table.add_column("Task", justify="left", style="magenta", max_width=50, no_wrap=True)
@@ -420,9 +420,10 @@ def handle_submit(args, config, tasks_file, console):
 
         resume = getattr(args, 'resume', False)
         submitted_ids = _load_progress() if resume else set()
-
+    
         if resume and submitted_ids:
             pending = [tc for tc in timecards if timecard_id(tc) not in submitted_ids]
+          
             skipped = len(timecards) - len(pending)
             if not pending:
                 console.print("[green]All timecards already submitted.[/green]")
@@ -431,7 +432,10 @@ def handle_submit(args, config, tasks_file, console):
             console.print(f"[cyan]Resuming: skipping {skipped} already submitted entr{'y' if skipped == 1 else 'ies'}.[/cyan]")
             timecards = pending
 
-        show_timecards_table(timecards)
+        no_case_entries = [tc for tc in timecards if getattr(tc, "case_no") is None]
+
+        if no_case_entries:
+            show_timecards_table(no_case_entries, title="Entries with missing case numbers (won't be submitted)")
 
         suffix = DRY_RUN_SUFFIX if args.dry_run else ""
         proceed = console.input(f"Proceed with submission?{suffix} (y/N): ").strip().lower()
