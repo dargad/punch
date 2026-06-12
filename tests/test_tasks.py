@@ -2,7 +2,15 @@ import unittest
 import tempfile
 import os
 import datetime
-from punch.tasks import TaskEntry, escape_separators, read_tasklog, parse_task, SEPARATOR, parse_new_task_string
+from punch.tasks import (
+    TaskEntry,
+    escape_separators,
+    read_tasklog,
+    parse_task,
+    SEPARATOR,
+    parse_new_task_string,
+    write_task,
+)
 
 CATEGORIES = {
     "Coding": {"short": "c", "caseid": "100"},
@@ -11,10 +19,11 @@ CATEGORIES = {
     "Research": {"short": "r", "caseid": "400"},
 }
 
+
 class TestTasks(unittest.TestCase):
     def setUp(self):
         # Create a temporary file for testing
-        self.testfile = tempfile.NamedTemporaryFile(delete=False, mode='w+', encoding='utf-8')
+        self.testfile = tempfile.NamedTemporaryFile(delete=False, mode="w+", encoding="utf-8")
         self.testfile.close()
 
     def tearDown(self):
@@ -37,7 +46,7 @@ class TestTasks(unittest.TestCase):
             category="Coding",
             task="new",
             notes="",
-            duration=datetime.timedelta(0)
+            duration=datetime.timedelta(0),
         )
         line = "2025-05-16 10:00 | Coding | Feature | Implemented feature"
         # Simulate read_tasklog logic for duration
@@ -50,11 +59,13 @@ class TestTasks(unittest.TestCase):
         # Write two entries to the file
         lines = [
             "2025-05-16 09:00 | Coding | new | \n",
-            "2025-05-16 10:00 | Coding | Feature | Implemented feature\n"
+            "2025-05-16 10:00 | Coding | Feature | Implemented feature\n",
         ]
-        with open(self.testfile.name, 'w') as f:
+        with open(self.testfile.name, "w") as f:
             f.writelines(lines)
+
         tasklog = read_tasklog(self.testfile.name)
+
         self.assertEqual(len(tasklog), 1)  # Only the second entry has duration > 0
         self.assertEqual(tasklog[0].finish, datetime.datetime(2025, 5, 16, 10, 0))
         self.assertEqual(tasklog[0].duration, datetime.timedelta(hours=1))
@@ -66,7 +77,7 @@ class TestTasks(unittest.TestCase):
             category="Coding",
             task="Feature",
             notes="",
-            duration=datetime.timedelta(hours=1)
+            duration=datetime.timedelta(hours=1),
         )
         line = "2025-05-16 09:00 | Coding | Bugfix | Fixed bug"
         entry = parse_task(line)
@@ -100,19 +111,44 @@ class TestTasks(unittest.TestCase):
             category="Coding",
             task="Feature",
             notes="Test",
-            duration=datetime.timedelta(hours=1)
+            duration=datetime.timedelta(hours=1),
         )
         self.assertIn("Coding", repr(entry))
         self.assertIn("Feature", repr(entry))
 
+    def test_write_task_sorts_entries_for_same_day(self):
+        write_task(
+            self.testfile.name,
+            "Coding",
+            "Later task",
+            "",
+            datetime.datetime(2025, 5, 16, 10, 0),
+        )
+        write_task(
+            self.testfile.name,
+            "Coding",
+            "Earlier task",
+            "",
+            datetime.datetime(2025, 5, 16, 9, 0),
+        )
+
+        with open(self.testfile.name, "r") as f:
+            lines = f.readlines()
+
+        self.assertTrue(lines[0].startswith("2025-05-16 09:00"))
+        self.assertTrue(lines[1].startswith("2025-05-16 10:00"))
+
+
 # Typer-based CLI tests (basic smoke test using subprocess)
 import subprocess
+
 
 class TestTyperCLI(unittest.TestCase):
     def test_report_help(self):
         result = subprocess.run(
             ["python", "-m", "punch.ui.cli", "report", "--help"],
-            capture_output=True, text=True
+            capture_output=True,
+            text=True,
         )
         self.assertIn("Usage", result.stdout)
         self.assertEqual(result.returncode, 0)
@@ -120,7 +156,8 @@ class TestTyperCLI(unittest.TestCase):
     def test_start_help(self):
         result = subprocess.run(
             ["python", "-m", "punch.ui.cli", "start", "--help"],
-            capture_output=True, text=True
+            capture_output=True,
+            text=True,
         )
         self.assertIn("Usage", result.stdout)
         self.assertEqual(result.returncode, 0)
@@ -128,7 +165,8 @@ class TestTyperCLI(unittest.TestCase):
     def test_config_show_help(self):
         result = subprocess.run(
             ["python", "-m", "punch.ui.cli", "config", "show", "--help"],
-            capture_output=True, text=True
+            capture_output=True,
+            text=True,
         )
         self.assertIn("Usage", result.stdout)
         self.assertEqual(result.returncode, 0)
@@ -136,7 +174,8 @@ class TestTyperCLI(unittest.TestCase):
     def test_cli_global_help(self):
         result = subprocess.run(
             ["python", "-m", "punch.ui.cli", "--help"],
-            capture_output=True, text=True
+            capture_output=True,
+            text=True,
         )
         self.assertIn("Usage", result.stdout)
         self.assertEqual(result.returncode, 0)
