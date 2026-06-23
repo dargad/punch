@@ -437,6 +437,14 @@ def handle_submit(args, config, tasks_file, console):
         if no_case_entries:
             show_timecards_table(no_case_entries, title="Entries with missing case numbers (won't be submitted)")
 
+        timecards = [tc for tc in timecards if getattr(tc, "case_no") is not None]
+
+        if not timecards:
+            console.print("No timecards with case numbers to submit.", style="bold red")
+            return
+
+        show_timecards_table(timecards)
+
         suffix = DRY_RUN_SUFFIX if args.dry_run else ""
         proceed = console.input(f"Proceed with submission?{suffix} (y/N): ").strip().lower()
         if proceed != "y":
