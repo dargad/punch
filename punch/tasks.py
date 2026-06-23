@@ -109,6 +109,8 @@ def write_task(taskfile, category, task, notes, finish=None):
     """
     Writes a new task entry to the task log.
     If category is empty, omit it from the output.
+    Sorts task entries after writing so out-of-order additions using --time
+    do not break chronological task log reading.
     """
     finish = finish or datetime.datetime.now()
 
@@ -125,8 +127,18 @@ def write_task(taskfile, category, task, notes, finish=None):
         line += f" {SEPARATOR} {notes.strip()}"
     line += "\n"
 
-    with open(taskfile, 'a') as f:
-        f.write(line)
+    existing_lines = []
+    try:
+        with open(taskfile, 'r') as f:
+            existing_lines = f.readlines()
+    except FileNotFoundError:
+        pass
+
+    existing_lines.append(line)
+    existing_lines.sort(key=lambda task_line: parse_task(task_line).finish)
+
+    with open(taskfile, 'w') as f:
+        f.writelines(existing_lines)
 
 def parse_new_task_string(task_string, categories):
     """
