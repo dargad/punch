@@ -187,13 +187,17 @@ def add(
     config = load_config(get_config_path())
     categories = config.get('categories', {})
     tasks_file = get_tasks_file()
+    console = Console()
+
+    if not categories:
+        console.print("[yellow]No configuration or categories found.[/yellow]")
+        console.print("Run [cyan]punch config wizard[/cyan] to create your configuration.")
+        raise typer.Exit(1)
 
     if task_args:
         task_str = " ".join([escape_separators(s) for s in task_args])
     else:
         task_str = ""
-
-    console = Console()
 
     if task_args is None:
         task = interactive_mode(categories, tasks_file)
