@@ -22,6 +22,7 @@ apps:
       - browser-support
       - x11
       - wayland
+      - u2f-devices
     environment:
       PLAYWRIGHT_BROWSERS_PATH: $SNAP/playwright-browsers
 
