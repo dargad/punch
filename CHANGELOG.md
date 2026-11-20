@@ -2,6 +2,9 @@
 
 ## next
 
+## 0.5.2
+* snap: include `libatomic1` so the Playwright driver can start for `punch login` and `punch submit`.
+
 ## 0.5.1
 * cli: replace validation stack traces with actionable errors, including category suggestions and usage examples.
 
