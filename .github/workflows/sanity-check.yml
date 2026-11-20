@@ -27,8 +27,13 @@ jobs:
       - name: Install dependencies with Poetry
         run: poetry install
 
+      - name: Install Firefox and virtual display
+        run: |
+          poetry run playwright install --with-deps firefox
+          sudo apt-get install -y xvfb xauth
+
       - name: Make scripts executable
         run: chmod +x scripts/test_all_cli_options.sh
 
       - name: Run CLI options test script
-        run: poetry run scripts/test_all_cli_options.sh
+        run: PUNCH_TEST_BROWSER=1 xvfb-run -a poetry run scripts/test_all_cli_options.sh

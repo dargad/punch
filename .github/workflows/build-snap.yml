@@ -28,6 +28,15 @@ jobs:
         uses: snapcore/action-build@v1
         id: build
 
+      - name: Test the built snap
+        env:
+          SNAP_PATH: ${{ steps.build.outputs.snap }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb xauth
+          sudo snap install --dangerous "$SNAP_PATH"
+          PUNCH_TEST_BROWSER=1 xvfb-run -a scripts/test_all_cli_options.sh /snap/bin/punch
+
       - uses: snapcore/action-publish@v1
         if: github.event_name == 'push'
         env:

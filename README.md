@@ -139,6 +139,12 @@ You do not need to manually save your week. Every time you add, edit, or delete 
 - Tests are in the `tests/` directory and cover both core logic and CLI usage.
 - See `punch/cli.py` for the main entrypoint.
 
+Run `poetry run scripts/test_all_cli_options.sh` to smoke-test the installed
+executable, or pass an executable path to test another installation (including a
+snap). Set `PUNCH_TEST_BROWSER=1` to also test login against a local server;
+this requires Playwright's Firefox browser and a graphical display (or Xvfb).
+The script does not submit timecards or test interactive interfaces.
+
 ## License
 
 MIT
