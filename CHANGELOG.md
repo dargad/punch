@@ -1,7 +1,22 @@
 # Changelog:
 
-## next
-* submit: added --resume/-r option for interrupted submissions, e.g. `punch submit --resume`
+## 0.5.0
+* tutorial: add interactive tutorial command to guide new users through punch features
+* config: load default configuration from snap installation (~/snap/punch/current/.config/punch/punch.yaml)
+* config: support configuration directory with YAML files instead of single punch.yaml (#20)
+* config: allow override of configuration directories
+* config: don't use XDG_CONFIG_HOME by default
+* cli: show correct configuration file path in help
+* cli: improve task validation - warn if case number is not found for category
+* weekly: add interactive weekly editor mode (#22)
+* submit: added --resume/-r option for interrupted submissions, e.g. `punch submit --resume` (#24)
+* submit: keep submit progress when submission exits early
+* submit: use atomic write for submit progress file
+* submit: improved submission progress file handling and cleanup
+* snap: enable arm64 architecture builds
+* snap: skip execstack security hardening on ARM64 to prevent build failures
+* refactor: improve atomic write operations with better error handling and encoding
+* tests: add tests for resume functionality
 
 ## 0.4.0
 * report: allow human-friendly dates in report ranges (e.g. `today`, `yesterday`) (#14)
