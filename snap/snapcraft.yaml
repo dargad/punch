@@ -42,6 +42,7 @@ parts:
       - libssl-dev
     stage-packages:
       - libnss3
+      - libatomic1
       - libatk1.0-0
       - libatk-bridge2.0-0
       - libcups2

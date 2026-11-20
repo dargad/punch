@@ -1,7 +1,18 @@
 # Changelog:
 
 ## next
-* submit: added --resume/-r option for interrupted submissions, e.g. `punch submit --resume`
+
+## 0.5.1
+* cli: replace validation stack traces with actionable errors, including category suggestions and usage examples.
+
+## 0.5.0
+* config: support layered configuration files in `punch.d/`, configurable config/data directories, and displaying the active config path.
+* editor: add `punch weeklyeditor` for viewing and editing tasks across a week.
+* submit: add `--resume/-r` to continue an interrupted submission.
+* cli: add the interactive `punch tutorial` and improve first-run setup guidance.
+* web: warn when a task category has no Salesforce case mapping.
+* submit: show a timecard summary before starting submission.
+* snap: support ARM64 builds and U2F devices.
 
 ## 0.4.0
 * report: allow human-friendly dates in report ranges (e.g. `today`, `yesterday`) (#14)
